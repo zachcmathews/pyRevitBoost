@@ -1,0 +1,11 @@
+-   rule: closest
+    from:
+        category:   Electrical Fixtures
+        parameters:
+        - Comments
+        - separator(-)
+        - Mark
+    to:
+        category:   Lighting Fixtures
+        parameters:
+        - Comments
