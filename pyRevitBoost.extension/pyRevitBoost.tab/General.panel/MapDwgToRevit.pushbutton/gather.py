@@ -2,7 +2,7 @@
 # pylint: disable=import-error
 from Autodesk.Revit.DB import (GeometryInstance, Options)
 
-import rpw
+from rpw.db import Collector
 
 from boostutils import get_name
 from parse import parse_block_name
@@ -39,15 +39,15 @@ def get_blocks(cad_import):
 
 
 def get_cad_imports():
-    return rpw.db.Collector(of_class='ImportInstance')
+    return Collector(of_class='ImportInstance').get_elements(wrapped=False)
 
 
 def get_family_types():
-    return rpw.db.Collector(of_class='FamilySymbol')
+    return Collector(of_class='FamilySymbol').get_elements(wrapped=False)
 
 
 def get_reference_planes():
-    return rpw.db.Collector(of_class='ReferencePlane')
+    return Collector(of_class='ReferencePlane').get_elements(wrapped=False)
 
 
 def group_blocks_by_name(blocks):
