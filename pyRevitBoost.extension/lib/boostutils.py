@@ -3,6 +3,7 @@
 from Autodesk.Revit.DB import (Domain, Line, XYZ)
 
 from pyrevit.coreutils import yaml
+import rpw
 
 
 def _convert_yamldotnet_to_python(ynode, level=0):
@@ -77,6 +78,10 @@ def find_closest(to, elements):
                 to.Location.Point
             )
     )
+
+
+def get_name(el):
+    return rpw.db.Element(el).name
 
 
 def get_parameter(el, name):
