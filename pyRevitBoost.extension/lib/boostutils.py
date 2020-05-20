@@ -1,7 +1,8 @@
 # pylint: disable=import-error
+import math
 import inspect
 
-from Autodesk.Revit.DB import (Domain, Line, XYZ)
+from Autodesk.Revit.DB import (Domain, Ellipse, Line, XYZ)
 
 from pyrevit.coreutils import yaml
 import rpw
@@ -165,3 +166,21 @@ def load_as_python(yaml_file):
 
 def to_XY(xyz):
     return XYZ(xyz.X, xyz.Y, 0)
+
+
+def draw_circle(center, radius, view, doc):
+    xaxis, yaxis = XYZ.BasisX, XYZ.BasisY
+    start, end = 0, 2*math.pi
+    circle = Ellipse.CreateCurve(
+        center,
+        radius,
+        radius,
+        xaxis,
+        yaxis,
+        start,
+        end
+    )
+    doc.Create.NewDetailCurve(
+        view,
+        circle
+    )
