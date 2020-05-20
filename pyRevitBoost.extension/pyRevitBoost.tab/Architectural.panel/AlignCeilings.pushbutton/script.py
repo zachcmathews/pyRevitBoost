@@ -180,11 +180,10 @@ with forms.ProgressBar(title='{value} of {max_value}') as pb:
                         'direction': direction,
                         'spacing': spacing,
                         'hatch_line': hatch_line,
-                        'reference_plane': reference_plane}
-                    )
+                        'reference_plane': reference_plane
+                    })
 
                 # Get cross-axis spacing
-                # TODO: Make me prettier
                 grid[0]['cross_axis_spacing'] = grid[1]['spacing']
                 grid[1]['cross_axis_spacing'] = grid[0]['spacing']
 

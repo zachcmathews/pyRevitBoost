@@ -1,3 +1,9 @@
+-   block: 2X4LN
+    category: Lighting Fixtures
+    family: Type A
+    type: A4
+    host: Ceiling
+
 # # TYPE A #
 # ##########
 # -   block: 2X4L
@@ -120,17 +126,17 @@
 # TYPE X #
 ##########
 
--   block: LTX1C1
-    category: Lighting Fixtures
-    family: TYPE X - CEILING MTD - UPDATED
-    type: X1C - EXIT SIGN SINGLE SIDED - AC ONLY
-    host: Level (9'-0")
+# -   block: LTX1C1
+#     category: Lighting Fixtures
+#     family: TYPE X - CEILING MTD - UPDATED
+#     type: X1C - EXIT SIGN SINGLE SIDED - AC ONLY
+#     host: Level (9'-0")
 
--   block: LTX2C1
-    category: Lighting Fixtures
-    family: TYPE X - CEILING MTD - UPDATED
-    type: X2C - EXIT SIGN DOUBLE SIDED - AC ONLY
-    host: Level (9'-0")
+# -   block: LTX2C1
+#     category: Lighting Fixtures
+#     family: TYPE X - CEILING MTD - UPDATED
+#     type: X2C - EXIT SIGN DOUBLE SIDED - AC ONLY
+#     host: Level (9'-0")
 
 #
 # # # TYPE H #

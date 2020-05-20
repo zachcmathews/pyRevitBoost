@@ -1,9 +1,30 @@
 # pylint: disable=import-error
-# from itertools import chain
+import inspect
+
 from Autodesk.Revit.DB import (Domain, Line, XYZ)
 
 from pyrevit.coreutils import yaml
 import rpw
+
+
+class memoize(object):
+    def __init__(self, func):
+        self.func = func
+        self.cache = {}
+
+    def __call__(self, *args, **kwargs):
+        key = self.key(args, kwargs)
+        if key not in self.cache:
+            self.cache[key] = self.func(*args, **kwargs)
+        return self.cache[key]
+
+    def normalize_args(self, args, kwargs):
+        spec = inspect.getargs(self.func.__code__).args
+        return dict(kwargs.items() + zip(spec, args))
+
+    def key(self, args, kwargs):
+        normalized_args = self.normalize_args(args, kwargs)
+        return tuple(sorted(normalized_args.items()))
 
 
 def _convert_yamldotnet_to_python(ynode, level=0):
