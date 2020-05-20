@@ -4,7 +4,7 @@ from Autodesk.Revit.DB import (GeometryInstance, Options)
 
 from rpw.db import Collector
 
-from boostutils import get_name
+from boostutils import get_name, memoize
 from parse import parse_block_name
 
 
@@ -22,6 +22,17 @@ def find_family_type(category, family, family_type, family_types):
         return typeToPlace
 
 
+def find_reference_plane(name):
+    reference_planes = get_reference_planes()
+    try:
+        [reference_plane] = \
+            [rp for rp in reference_planes if rp.Name == name]
+    except ValueError:
+        return None
+    else:
+        return reference_plane
+
+
 def get_blocks(cad_import):
     options = Options()
     try:
@@ -33,8 +44,8 @@ def get_blocks(cad_import):
         return None
     else:
         return [
-          g for g in import_geometry.GetSymbolGeometry()
-          if type(g) == GeometryInstance
+            g for g in import_geometry.GetSymbolGeometry()
+            if type(g) == GeometryInstance
         ]
 
 
@@ -46,6 +57,7 @@ def get_family_types():
     return Collector(of_class='FamilySymbol').get_elements(wrapped=False)
 
 
+@memoize
 def get_reference_planes():
     return Collector(of_class='ReferencePlane').get_elements(wrapped=False)
 
