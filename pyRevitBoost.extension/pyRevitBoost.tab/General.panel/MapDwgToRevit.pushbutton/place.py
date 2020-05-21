@@ -4,7 +4,7 @@ from Autodesk.Revit.DB.Structure import StructuralType
 from Autodesk.Revit.DB.UnitUtils import ConvertToInternalUnits
 
 from boostutils import get_parameter
-from gather import find_reference_plane
+from gather import find_nearest_wall, find_reference_plane
 
 
 def map_block_to_family_instance(
@@ -15,15 +15,14 @@ def map_block_to_family_instance(
 
     block_direction = transform.OfVector(XYZ.BasisX)
     block_orientation = XYZ.BasisX.AngleTo(block_direction)
-    block_rotation = Transform.CreateRotationAtPoint(
+    block_rotation = Transform.CreateRotation(
         XYZ.BasisZ,
-        block_orientation,
-        XYZ.Zero
+        block_orientation
     )
 
     block_location = transform.OfPoint(XYZ.Zero)
     center_offset = block_rotation.OfVector(center_offset)
-    location = block_location - center_offset
+    location = block_location + center_offset
 
     # Place family instance
     if host['type'] == 'Reference Plane':
@@ -40,7 +39,23 @@ def map_block_to_family_instance(
             level,
             location,
             doc
-        )
+		)
+	elif host['type'] == 'Wall':
+		element_rotation = Transform.CreateRotation(
+			XYZ.BasisZ,
+			block_orientation + orientation_offset
+		)
+		element_normal = element_rotation.OfVector(XYZ.BasisX)
+		wall = find_nearest_wall(
+			location=location,
+			normal=element_normal
+		)
+		family_instance = place_on_wall(
+			family_type,
+			wall,
+			location,
+			doc
+		)
 
     # Rotate family instance into alignment with block
     z_axis = Line.CreateBound(location, location + XYZ.BasisZ)
@@ -48,7 +63,7 @@ def map_block_to_family_instance(
         doc,
         family_instance.Id,
         z_axis,
-        block_orientation-orientation_offset
+        block_orientation + orientation_offset
     )
 
     # Set family instance parameters
@@ -63,17 +78,18 @@ def map_block_to_family_instance(
 
 def place_on_reference_plane(family_type, reference_plane, location, doc):
     plane = reference_plane.GetPlane()
-    offset = plane.Origin.DotProduct(plane.Normal) * plane.Normal
     direction = reference_plane.FreeEnd - reference_plane.BubbleEnd
-    orientation = XYZ.BasisX.AngleTo(direction)
-    z_axis = Line.CreateBound(location, location + XYZ.BasisZ)
-
+    offset = plane.Origin.DotProduct(plane.Normal) * plane.Normal
     family_instance = doc.Create.NewFamilyInstance(
         reference_plane.GetReference(),
-        location+offset,
+        location + offset,
         direction,
         family_type
     )
+
+    # Negate direction of reference plane
+    orientation = XYZ.BasisX.AngleTo(direction)
+    z_axis = Line.CreateBound(location, location + XYZ.BasisZ)
     ElementTransformUtils.RotateElement(
         doc,
         family_instance.Id,
@@ -95,10 +111,17 @@ def place_on_level(family_type, level, location, doc):
     return family_instance
 
 
+def place_on_wall(family_type, wall, location, doc):
+	family_instance = doc.Create.NewFamilyInstance(
+
+	)
+
+	return family_instance
+
+
 def set_parameters(el, parameters, units):
     for p in parameters:
-        if p:
-            set_parameter(el, p, units)
+        set_parameter(el, p, units)
 
 
 def set_parameter(el, parameter, units):
@@ -110,7 +133,7 @@ def set_parameter(el, parameter, units):
     if parameter['type'] == 'True/False':
         ref.Set(False) if parameter['value'] == 'False' else ref.Set(True)
 
-    if parameter['type'] == 'Text':
+    elif parameter['type'] == 'Text':
         ref.Set(parameter['value'])
 
     elif parameter['type'] == 'Length':

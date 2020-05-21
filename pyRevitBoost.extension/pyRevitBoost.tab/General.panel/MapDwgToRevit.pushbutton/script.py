@@ -1,7 +1,6 @@
 # pylint: disable=import-error
 import sys
 import time
-import contextlib
 
 from Autodesk.Revit.DB import GeometryInstance
 from Autodesk.Revit.Exceptions import ArgumentException
@@ -67,47 +66,35 @@ cnt = 0
 total = len(blocks)
 no_mapping = {}
 failed = []
-with contextlib.nested(
-    forms.ProgressBar(title='{value} of {max_value}', step=20),
-    rpw.db.Transaction('CAD -> Revit')
-) as (pb, t):
-    for block_name, blocks in blocks_grouped_by_name.items():
-        mapping = parse_config(block_name, config, doc)
-        family_type = mapping.get('family_type')
-        host = mapping.get('host')
-        center_offset = mapping.get('center_offset')
-        orientation_offset = mapping.get('orientation_offset')
-        parameters = mapping.get('parameters')
-
-        if not all([
-          family_type, host,
-          center_offset, orientation_offset,
-          type(parameters) is list
-        ]):
-            no_mapping[block_name] = blocks
-            cnt += len(blocks)
-            pb.update_progress(cnt, total)
-            continue
-
-        for block in blocks:
-            try:
-                map_block_to_family_instance(
-                    family_type=family_type,
-                    host=host,
-                    center_offset=center_offset,
-                    orientation_offset=orientation_offset,
-                    parameters=parameters,
-                    block=block,
-                    transform=import_transform,
-                    doc=doc,
-                    view=view,
-                    level=level,
-                )
-            except ArgumentException:
-                failed.append(block)
-            finally:
-                cnt += 1
+with forms.ProgressBar(title='{value} of {max_value}', step=20) as pb:
+    with rpw.db.Transaction('CAD -> Revit') as t:
+        for block_name, blocks in blocks_grouped_by_name.items():
+            mapping = parse_config(block_name, config, doc)
+            if not mapping:
+                no_mapping[block_name] = blocks
+                cnt += len(blocks)
                 pb.update_progress(cnt, total)
+                continue
+
+            for block in blocks:
+                try:
+                    map_block_to_family_instance(
+                        family_type=mapping['family_type'],
+                        host=mapping['host'],
+                        center_offset=mapping['center_offset'],
+                        orientation_offset=mapping['orientation_offset'],
+                        parameters=mapping['parameters'],
+                        block=block,
+                        transform=import_transform,
+                        doc=doc,
+                        view=view,
+                        level=level,
+                    )
+                except ArgumentException:
+                    failed.append(block)
+                finally:
+                    cnt += 1
+                    pb.update_progress(cnt, total)
 
 
 no_mapping_count = sum(len(blocks) for blocks in no_mapping.values())
