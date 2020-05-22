@@ -8,7 +8,7 @@ from Autodesk.Revit.DB import Transform, UnitFormatUtils, UnitType, XYZ
 
 regex = {
     'block': re.compile(r'^.*\.(?P<name>.+?)(_[0-9]+){0,1}$'),
-    'host': re.compile(r'^(?<type>Reference Plane|Level|Wall) *(\((?<id>.+)\)){0,1}$'),
+    'host': re.compile(r'^(?<type>Reference Plane|Level|Wall) *(\((?<param>.+)\)){0,1}$'),
     'center-offset': re.compile(r'^\((?P<x>[0-9-\'"\/. ]+){0,1}, *(?P<y>[0-9-\'"\/. ]+){0,1}\)$'),
     'orientation-offset': re.compile(r'^(?P<angle>-{0,1}[0-9]*(\.[0-9]+){0,1}) *(?P<unit>deg|rad|°){0,1}$'),
     'parameter': re.compile(r'^(?P<name>.+?)\s*<(?P<type>True/False|Text|Length|Number)>\s*=\s*(?P<value>.*)$')
@@ -26,7 +26,7 @@ def parse_config(block_name, config, doc):
 
     # Parse config
     from gather import find_family_type
-    host = parse_host(mapping.get('host'))
+    host = parse_host(mapping.get('host'), doc.GetUnits())
     family_type = find_family_type(
         category=mapping.get('category'),
         family=mapping.get('family'),
@@ -39,7 +39,7 @@ def parse_config(block_name, config, doc):
     orientation_offset = parse_orientation_offset(
         offset=mapping.get('orientation-offset')
     )
-    rotate_center_offset = parse_rotate_center_offset(
+    rotate_center_offset = parse_orientation_offset(
         offset=mapping.get('rotate-center-offset')
     )
     parameters = parse_parameters(
@@ -75,33 +75,28 @@ def parse_block_name(block):
     return results.group('name') if results else None
 
 
-def parse_host(host):
+def parse_host(host, units):
     results = regex['host'].search(host)
-    type = results.group('type')
-    id = results.group('id')
+    type_ = results.group('type')
+    param = results.group('param')
 
-    if type == 'Wall':
-        tolerance_results = regex['tolerance'].search(id)
+    if type_ == 'Wall':
+        (succeeded, tolerance) = UnitFormatUtils.TryParse(
+            units,
+            UnitType.UT_Length,
+            param
+        )
 
-        if tolerance_results:
-            (succeeded, tolerance) = UnitFormatUtils.TryParse(
-                units,
-                UnitType.UT_Length,
-                x
-            )
+        return {
+            'type': type_,
+            'tolerance': tolerance
+        } if succeeded else None
 
-            if succeeded:
-                id = tolerance
-            else:
-                return None
-
-        else:
-            return None
-
-    return {
-        'type': type,
-        'id': id
-    } if results else None
+    else:
+        return {
+            'type': type_,
+            'id': param
+        } if results else None
 
 
 def parse_center_offset(offset, units):
@@ -158,7 +153,6 @@ def parse_orientation_offset(offset):
     # No offset specified
     else:
         return 0.0
-parse_rotate_center_offset = parse_orientation_offset
 
 
 def parse_parameters(parameters):

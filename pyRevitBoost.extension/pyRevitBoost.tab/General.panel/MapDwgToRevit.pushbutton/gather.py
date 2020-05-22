@@ -1,13 +1,15 @@
 
 # pylint: disable=import-error
-from Autodesk.Revit.DB import (GeometryInstance, HostObjectUtils, Options, ShellLayerType)
+from itertools import chain
+
+from Autodesk.Revit.DB import (GeometryInstance, HostObjectUtils, Options,
+                               ShellLayerType)
 
 from rpw.db import Collector
 
 from boostutils import get_name, memoize
 from parse import parse_block_name
 
-def get_faces_by_normal(normal):
 
 def find_family_type(category, family, family_type):
     family_types = get_family_types()
@@ -35,13 +37,33 @@ def find_reference_plane(name):
         return reference_plane
 
 
-def find_nearest_wall(location, normal):
-    walls = get_walls()
+def find_nearest_wall_face(location, tolerance, doc):
+    faces = get_wall_faces(doc)
 
-    # for wall in walls:
-    #
+    nearest = {'face': None, 'point': None, 'uv': None, 'distance': None}
+    for face in faces:
+        projection = face.Project(location)
+        distance = projection
+        uv = projection.UVPoint
+        point = projection.XYZPoint
 
-    return (wall, face)
+        if (
+            (
+                all(v is None for v in nearest.values())
+                or distance < nearest['distance']
+            )
+            and distance <= tolerance
+        ):
+            nearest = {
+                'face': face,
+                'point': point,
+                'uv': uv,
+                'distance': distance
+            }
+
+    return nearest.update(
+        ('normal', nearest['face'].ComputeNormal(nearest['uv']))
+    ) if any(v is None for v in nearest.values()) else None
 
 
 def get_blocks(cad_import):
@@ -79,6 +101,18 @@ def get_walls():
     return Collector(of_class='Wall').get_elements(wrapped=False)
 
 
+@memoize
+def get_wall_faces(doc):
+    walls = get_walls()
+    faces = chain(
+        HostObjectUtils.GetSideFaces(
+            wall,
+            ShellLayerType.External
+        ) for wall in walls
+    )
+    return [doc.GetElement(f) for f in faces]
+
+
 def group_blocks_by_name(blocks):
     blocks_grouped_by_name = {}
     for block in blocks:
@@ -88,4 +122,4 @@ def group_blocks_by_name(blocks):
         else:
             blocks_grouped_by_name[block_name].append(block)
 
-    return blocks_grouped_by_name or None
+    return blocks_grouped_by_name if blocks_grouped_by_name else None
