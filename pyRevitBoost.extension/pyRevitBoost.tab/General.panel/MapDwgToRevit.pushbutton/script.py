@@ -2,12 +2,11 @@
 import sys
 import time
 
-from Autodesk.Revit.DB import GeometryInstance
 from Autodesk.Revit.Exceptions import ArgumentException
 
 import rpw
 from pyrevit import forms, script
-from boostutils import draw_circle, load_as_python
+from boostutils import load_as_python
 
 from parse import parse_config
 from place import map_block_to_family_instance
@@ -15,12 +14,13 @@ from gather import (get_blocks, get_cad_imports,
                     get_family_types, get_reference_planes,
                     group_blocks_by_name)
 
-__doc__ = \
-'''Map imported CAD blocks to their equivalent Revit family type. \
+__doc__ = '''\
+Map imported CAD blocks to their equivalent Revit family type. \
 Requires viable configuration specified in config.yaml.
 
 Shift+Click = Draw circle at block locations. Useful for setting \
-offsets in config.yaml.'''
+offsets in config.yaml.
+'''
 __title__ = 'Convert\nDWG Blocks'
 __author__ = 'Zachary Mathews'
 

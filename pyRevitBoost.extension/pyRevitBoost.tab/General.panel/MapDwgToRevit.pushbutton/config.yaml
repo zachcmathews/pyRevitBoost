@@ -172,7 +172,8 @@
 #     parameters:
 #     - Fixture Height <Length> = 9' 0"
 
--   block: *U28
+-   block: >-
+        *U28
     category: Lighting Fixtures
     family: TYPE X - CEILING MTD - UPDATED
     type: X2C - EXIT SIGN DOUBLE SIDED - AC ONLY

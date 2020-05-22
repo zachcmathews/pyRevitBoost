@@ -1,10 +1,9 @@
 # pylint: disable=import-error
 from Autodesk.Revit.DB import ElementTransformUtils, Line, Transform, XYZ
 from Autodesk.Revit.DB.Structure import StructuralType
-from Autodesk.Revit.DB.UnitUtils import ConvertToInternalUnits
 
 from boostutils import get_parameter
-from gather import find_nearest_wall, find_reference_plane
+from gather import find_nearest_wall_face, find_reference_plane
 
 
 def map_block_to_family_instance(
@@ -39,23 +38,18 @@ def map_block_to_family_instance(
             level,
             location,
             doc
-		)
-	elif host['type'] == 'Wall':
-		element_rotation = Transform.CreateRotation(
-			XYZ.BasisZ,
-			block_orientation + orientation_offset
-		)
-		element_normal = element_rotation.OfVector(XYZ.BasisX)
-		wall = find_nearest_wall(
-			location=location,
-			normal=element_normal
-		)
-		family_instance = place_on_wall(
-			family_type,
-			wall,
-			location,
-			doc
-		)
+        )
+    elif host['type'] == 'Wall':
+        wall = find_nearest_wall_face(
+            location=location,
+            tolerance=host['tolerance'],
+            doc=doc
+        )
+        family_instance = place_on_wall(
+            family_type,
+            wall,
+            doc
+        )
 
     # Rotate family instance into alignment with block
     z_axis = Line.CreateBound(location, location + XYZ.BasisZ)
@@ -111,12 +105,15 @@ def place_on_level(family_type, level, location, doc):
     return family_instance
 
 
-def place_on_wall(family_type, wall, location, doc):
-	family_instance = doc.Create.NewFamilyInstance(
+def place_on_wall(family_type, wall, doc):
+    family_instance = doc.Create.NewFamilyInstance(
+        wall['face'].Reference,
+        wall['point'],
+        wall['normal'],
+        family_type
+    )
 
-	)
-
-	return family_instance
+    return family_instance
 
 
 def set_parameters(el, parameters, units):
