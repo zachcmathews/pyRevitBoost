@@ -16,7 +16,7 @@ from gather import (get_blocks, get_cad_imports,
 
 __doc__ = '''\
 Map imported CAD blocks to their equivalent Revit family type. \
-Requires viable configuration specified in config.yaml.
+Requires configuration specified in config.yaml.
 
 Shift+Click = Draw circle at block locations. Useful for setting \
 offsets in config.yaml.
@@ -81,7 +81,7 @@ with forms.ProgressBar(title='{value} of {max_value}', step=20) as pb:
                     map_block_to_family_instance(
                         family_type=mapping['family_type'],
                         host=mapping['host'],
-                        center_offset=mapping['center_offset'],
+                        origin_offset=mapping['origin_offset'],
                         orientation_offset=mapping['orientation_offset'],
                         parameters=mapping['parameters'],
                         block=block,

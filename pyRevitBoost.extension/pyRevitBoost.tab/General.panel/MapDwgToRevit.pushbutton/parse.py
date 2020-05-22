@@ -8,8 +8,8 @@ from Autodesk.Revit.DB import Transform, UnitFormatUtils, UnitType, XYZ
 
 regex = {
     'block': re.compile(r'^.*\.(?P<name>.+?)(_[0-9]+){0,1}$'),
-    'host': re.compile(r'^(?<type>Reference Plane|Level|Wall) *(\((?<param>.+)\)){0,1}$'),
-    'center-offset': re.compile(r'^\((?P<x>[0-9-\'"\/. ]+){0,1}, *(?P<y>[0-9-\'"\/. ]+){0,1}\)$'),
+    'host': re.compile(r'^(?<type>Ceiling|Reference Plane|Level|Wall|Wall and Level) *(\((?<param>.+)\)){0,1}$'),
+    'origin-offset': re.compile(r'^\((?P<x>[0-9-\'"\/. ]+){0,1}, *(?P<y>[0-9-\'"\/. ]+){0,1}\)$'),
     'orientation-offset': re.compile(r'^(?P<angle>-{0,1}[0-9]*(\.[0-9]+){0,1}) *(?P<unit>deg|rad|°){0,1}$'),
     'parameter': re.compile(r'^(?P<name>.+?)\s*<(?P<type>True/False|Text|Length|Number)>\s*=\s*(?P<value>.*)$')
 }
@@ -32,15 +32,15 @@ def parse_config(block_name, config, doc):
         family=mapping.get('family'),
         family_type=mapping.get('type')
     )
-    center_offset = parse_center_offset(
-        offset=mapping.get('center-offset'),
+    origin_offset = parse_center_offset(
+        offset=mapping.get('origin-offset'),
         units=doc.GetUnits()
     )
     orientation_offset = parse_orientation_offset(
         offset=mapping.get('orientation-offset')
     )
     rotate_center_offset = parse_orientation_offset(
-        offset=mapping.get('rotate-center-offset')
+        offset=mapping.get('rotate-origin-offset')
     )
     parameters = parse_parameters(
         parameters=mapping.get('parameters')
@@ -49,7 +49,7 @@ def parse_config(block_name, config, doc):
     map = {
         'family_type': family_type,
         'host': host,
-        'center_offset': center_offset,
+        'origin_offset': origin_offset,
         'rotate_center_offset': rotate_center_offset,
         'orientation_offset': orientation_offset,
         'parameters': parameters
@@ -64,7 +64,7 @@ def parse_config(block_name, config, doc):
         XYZ.BasisZ,
         rotate_center_offset
     )
-    map['center_offset'] = rotation.OfVector(center_offset)
+    map['origin_offset'] = rotation.OfVector(origin_offset)
 
     family_type.Activate()  # Revit doesn't allow placing inactive families
     return map
@@ -80,7 +80,7 @@ def parse_host(host, units):
     type_ = results.group('type')
     param = results.group('param')
 
-    if type_ == 'Wall':
+    if type_ == 'Wall' or type_ == 'Wall and Level':
         (succeeded, tolerance) = UnitFormatUtils.TryParse(
             units,
             UnitType.UT_Length,
@@ -101,7 +101,7 @@ def parse_host(host, units):
 
 def parse_center_offset(offset, units):
     if offset:
-        results = regex['center-offset'].search(offset)
+        results = regex['origin-offset'].search(offset)
         if results:
             x, y = results.group('x'), results.group('y')
 
@@ -124,7 +124,7 @@ def parse_center_offset(offset, units):
             else:
                 return None
 
-        # We couldn't parse config 'center-offset'
+        # We couldn't parse config 'origin-offset'
         else:
             return None
 

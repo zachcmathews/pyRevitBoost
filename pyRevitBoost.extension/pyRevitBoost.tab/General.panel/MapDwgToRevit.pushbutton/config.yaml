@@ -4,8 +4,8 @@
 #     type: A4
 #     host: Ceiling
 
-# TYPE A #
-##########
+# # TYPE A #
+# ##########
 #
 # -   block: 2X4L
 #     category: Lighting Fixtures
@@ -19,11 +19,11 @@
 #     type: AX - Existing 4-lamp fixture
 #     host: Reference Plane (01 LEVEL - 9'-0")
 #
-# -   block: 2X4LN
-#     category: Lighting Fixtures
-#     family: TYPE A - RECESSED 2x4 LIGHT FIXTURE - LED
-#     type: AEX - Existing 4-lamp fixture (Emergency)
-#     host: Reference Plane (01 LEVEL - 9'-0")
+-   block: 2X4LN
+    category: Lighting Fixtures
+    family: TYPE A - RECESSED 2x4 LIGHT FIXTURE - LED
+    type: AEX - Existing 4-lamp fixture (Emergency)
+    host: Ceiling
 #
 # -   block: 2X4C
 #     category: Lighting Fixtures
@@ -36,7 +36,7 @@
 #     family: TYPE A - RECESSED 2x4 LIGHT FIXTURE - LED
 #     type: CEX - Existing 2-lamp fixture (Emergency)
 #     host: Reference Plane (01 LEVEL - 9'-0")
-#     center-offset: (-0' 9 111/128", 0' 3 79/128")
+#     origin-offset: (-0' 9 111/128", 0' 3 79/128")
 #     orientation-offset: -90°
 #
 # -   block: _U32
@@ -44,7 +44,7 @@
 #     family: TYPE A - RECESSED 2x4 LIGHT FIXTURE - LED
 #     type: CEX - Existing 2-lamp fixture (Emergency)
 #     host: Reference Plane (01 LEVEL - 9'-0")
-#     center-offset: (0' 10 23/32", 1' 1 15/64")
+#     origin-offset: (0' 10 23/32", 1' 1 15/64")
 #     orientation-offset: -90°
 #
 # -   block: _U51
@@ -52,8 +52,8 @@
 #     family: TYPE A - RECESSED 2x4 LIGHT FIXTURE - LED
 #     type: CEX - Existing 2-lamp fixture (Emergency)
 #     host: Reference Plane (01 LEVEL - 9'-0")
-#     center-offset: (-1' 1 15/64", -0' 9 115/128")
-#     rotate-center-offset: -90°
+#     origin-offset: (-1' 1 15/64", -0' 9 115/128")
+#     rotate-origin-offset: -90°
 #     orientation-offset: -90°
 #
 # # TYPE D #
@@ -70,13 +70,22 @@
 #     family: TYPE D - RECESSED 2x2 LIGHT FIXTURE - LED
 #     type: DEX - Existing 2 Lamp Fixture (Emergency)
 #     host: Reference Plane (01 LEVEL - 9'-0")
-#     center-offset: (-0' 7 59/64", -0' 10 39/256")
+#     origin-offset: (-0' 7 59/64", -0' 10 39/256")
 #
 # -   block: _U37
 #     category: Lighting Fixtures
 #     family: TYPE D - RECESSED 2x2 LIGHT FIXTURE - LED
 #     type: DEX - Existing 2 Lamp Fixture (Emergency)
 #     host: Reference Plane (01 LEVEL - 9'-0")
+#
+# -   block: H_LIT
+#     category: Lighting Fixtures
+#     family: TYPE D - RECESSED 2x2 LIGHT FIXTURE - LED
+#     type: D1X - Existing 1 Lamp Fixture
+#     host: Reference Plane (01 LEVEL - 9'-0")
+#     origin-offset: (-1' 0", 1' 0")
+#     rotate-origin-offset: 0°
+#     orientation-offset: -90°
 #
 # # TYPE F #
 # ##########
@@ -99,6 +108,30 @@
 #     type: FX
 #     host: Reference Plane (01 LEVEL - 9'-0")
 #
+# # TYPE J #
+# ##########
+#
+# -   block: EWALLL
+#     category: Lighting Fixtures
+#     family: TYPE JCX - EXISTING EXTERIOR WALL PACK LIGHT FIXTURE - LED
+#     type: Standard
+#     host: Wall (2' 0")
+#
+# -   block: WALLL
+#     category: Lighting Fixtures
+#     family: TYPE JCX - EXISTING EXTERIOR WALL PACK LIGHT FIXTURE - LED
+#     type: Standard
+#     host: Wall (2' 0")
+#
+# # TYPE K #
+# ##########
+#
+# -   block: K_LIT
+#     category: Lighting Fixtures
+#     family: TYPE K - BUGEYE EMERGENCY LIGHTING FIXTURE
+#     type: KX - Existing
+#     host: Wall (2' 0")
+#
 # # TYPE l #
 # ##########
 #
@@ -119,7 +152,7 @@
 #     family: TYPE L - RECESSED 1x4 LIGHT FIXTURE - LED
 #     type: LEX - Existing 1x4 (Emergency)
 #     host: Reference Plane (01 LEVEL - 9'-0")
-#     center-offset: (0, -0' 7 87/256")
+#     origin-offset: (0, -0' 7 87/256")
 #     parameters:
 #     - Emergency Light <True/False> = True
 #
@@ -171,24 +204,16 @@
 #     host: Level
 #     parameters:
 #     - Fixture Height <Length> = 9' 0"
-
--   block: >-
-        *U28
-    category: Lighting Fixtures
-    family: TYPE X - CEILING MTD - UPDATED
-    type: X2C - EXIT SIGN DOUBLE SIDED - AC ONLY
-    host: Wall (2')
-    center-offset: (-1' 7 145/256")
-    rotate-center-offset: -90°
-    orientation-offset: 90°
-    parameters:
-    - Fixture Height <Length> = 9' 0"
-
-# # TYPE H #
-# ##########
-# # Existing 1x1 ceiling mounted emergency light w/ battery pack
-# -   block: H_LIT
+# 
+# -   block: LTX1W1
 #     category: Lighting Fixtures
-#     family: TYPE X - CEILING MTD - UPDATED
-#     type: X1C - EXIT SIGN SINGLE SIDED - AC ONLY
-#     host: Reference Plane (01 LEVEL - 9'-0")
+#     family: TYPE X - WALL MTD - UPDATED
+#     type: X1LWX - EXISTING WITH LAMP HEADS
+#     host: Wall and Level (4')
+#
+# -   block: >-
+#         *U28
+#     category: Lighting Fixtures
+#     family: TYPE X - WALL MTD - UPDATED
+#     type: X1LWX - EXISTING WITH LAMP HEADS
+#     host: Wall and Level (4')

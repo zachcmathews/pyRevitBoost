@@ -26,6 +26,83 @@ def find_family_type(category, family, family_type):
         return typeToPlace
 
 
+def find_nearest_ceiling_face(location):
+    ceiling_face_refs = get_ceiling_faces()
+
+    nearest = {
+        'ceiling': None,
+        'face_ref': None,
+        'face': None,
+        'point': None,
+        'uv': None,
+        'distance': None
+    }
+    for ceiling, face_refs in ceiling_face_refs:
+        for face_ref in face_refs:
+            face = ceiling.GetGeometryObjectFromReference(face_ref)
+
+            projection = face.Project(location)
+            if projection:
+                distance = projection.Distance
+                uv = projection.UVPoint
+                point = projection.XYZPoint
+
+                if (
+                    all(v is None for v in nearest.values())
+                    or distance < nearest['distance']
+                ):
+                    nearest = {
+                        'ceiling': ceiling,
+                        'face_ref': face_ref,
+                        'face': face,
+                        'point': point,
+                        'uv': uv,
+                        'distance': distance
+                    }
+
+    return nearest if not any(v is None for v in nearest.values()) else None
+
+
+def find_nearest_wall_face(location, tolerance):
+    wall_face_refs = get_wall_faces()
+
+    nearest = {
+        'wall': None,
+        'face_ref': None,
+        'face': None,
+        'point': None,
+        'uv': None,
+        'distance': None
+    }
+    for wall, face_refs in wall_face_refs:
+        for face_ref in face_refs:
+            face = wall.GetGeometryObjectFromReference(face_ref)
+
+            projection = face.Project(location)
+            if projection:
+                distance = projection.Distance
+                uv = projection.UVPoint
+                point = projection.XYZPoint
+
+                if (
+                    (
+                        all(v is None for v in nearest.values())
+                        or distance < nearest['distance']
+                    )
+                    and distance <= tolerance
+                ):
+                    nearest = {
+                        'wall': wall,
+                        'face_ref': face_ref,
+                        'face': face,
+                        'point': point,
+                        'uv': uv,
+                        'distance': distance
+                    }
+
+    return nearest if not any(v is None for v in nearest.values()) else None
+
+
 def find_reference_plane(name):
     reference_planes = get_reference_planes()
     try:
@@ -35,35 +112,6 @@ def find_reference_plane(name):
         return None
     else:
         return reference_plane
-
-
-def find_nearest_wall_face(location, tolerance, doc):
-    faces = get_wall_faces(doc)
-
-    nearest = {'face': None, 'point': None, 'uv': None, 'distance': None}
-    for face in faces:
-        projection = face.Project(location)
-        distance = projection
-        uv = projection.UVPoint
-        point = projection.XYZPoint
-
-        if (
-            (
-                all(v is None for v in nearest.values())
-                or distance < nearest['distance']
-            )
-            and distance <= tolerance
-        ):
-            nearest = {
-                'face': face,
-                'point': point,
-                'uv': uv,
-                'distance': distance
-            }
-
-    return nearest.update(
-        ('normal', nearest['face'].ComputeNormal(nearest['uv']))
-    ) if any(v is None for v in nearest.values()) else None
 
 
 def get_blocks(cad_import):
@@ -87,6 +135,25 @@ def get_cad_imports():
 
 
 @memoize
+def get_ceilings():
+    return Collector(of_class='Ceiling').get_elements(wrapped=False)
+
+@memoize
+def get_ceiling_faces():
+    ceilings = get_ceilings()
+
+    face_refs = []
+    for ceiling in ceilings:
+        bottom_faces = HostObjectUtils.GetBottomFaces(ceiling)
+
+        _face_refs = []
+        _face_refs.extend([face_ref for face_ref in bottom_faces])
+
+        face_refs.append(_face_refs)
+
+    return zip(ceilings, face_refs)
+
+@memoize
 def get_family_types():
     return Collector(of_class='FamilySymbol').get_elements(wrapped=False)
 
@@ -102,15 +169,24 @@ def get_walls():
 
 
 @memoize
-def get_wall_faces(doc):
+def get_wall_faces():
+    # .NET stuff
+    slt_exterior = getattr(ShellLayerType, 'Exterior')
+    slt_interior = getattr(ShellLayerType, 'Interior')
+
     walls = get_walls()
-    faces = chain(
-        HostObjectUtils.GetSideFaces(
-            wall,
-            ShellLayerType.External
-        ) for wall in walls
-    )
-    return [doc.GetElement(f) for f in faces]
+    face_refs = []
+    for wall in walls:
+        ext_side_faces = HostObjectUtils.GetSideFaces(wall, slt_exterior)
+        int_side_faces = HostObjectUtils.GetSideFaces(wall, slt_interior)
+
+        _face_refs = []
+        _face_refs.extend([face_ref for face_ref in ext_side_faces])
+        _face_refs.extend([face_ref for face_ref in int_side_faces])
+
+        face_refs.append(_face_refs)
+
+    return zip(walls, face_refs)
 
 
 def group_blocks_by_name(blocks):
