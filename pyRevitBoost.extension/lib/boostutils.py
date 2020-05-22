@@ -2,7 +2,7 @@
 import math
 import inspect
 
-from Autodesk.Revit.DB import (Domain, Ellipse, Line, XYZ)
+from Autodesk.Revit.DB import (BuiltInParameter, Domain, Ellipse, Line, XYZ)
 
 from pyrevit.coreutils import yaml
 import rpw
@@ -106,16 +106,23 @@ def get_name(el):
     return rpw.db.Element(el).name
 
 
-def get_parameter(el, name):
-    instanceParam = el.LookupParameter(name)
-    typeParam = el.Symbol.LookupParameter(name)
+def get_parameter(el, name=None, builtin=None):
+    if builtin:
+        param = getattr(BuiltInParameter, builtin)
+        instanceParam = el.get_Parameter(param)
+        typeParam = el.Symbol.get_Parameter(param)
+    elif name:
+        instanceParam = el.LookupParameter(name)
+        typeParam = el.Symbol.LookupParameter(name)
+    else:
+        return None
+
     if instanceParam:
         return instanceParam
     elif typeParam:
         return typeParam
     else:
         return None
-
 
 # # TODO: Test me
 # def get_solids(doc, element, view, options):
