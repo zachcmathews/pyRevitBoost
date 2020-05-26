@@ -2,7 +2,8 @@
 import math
 import inspect
 
-from Autodesk.Revit.DB import (BuiltInParameter, Domain, Ellipse, Line, XYZ)
+from Autodesk.Revit.DB import (BuiltInParameter, Domain, Ellipse, Line,
+                               ViewPlan, XYZ)
 
 from pyrevit.coreutils import yaml
 import rpw
@@ -53,20 +54,46 @@ def _convert_yamldotnet_to_python(ynode, level=0):
         return ynode.Value
 
 
+def is_inside_bounding_box(point, box, include_z=True):
+    if include_z:
+        return (
+            box.Min.X <= point.X <= box.Max.X
+            and box.Min.Y <= point.Y <= box.Max.Y
+            and box.Min.Z <= point.Z <= box.Max.Z
+        )
+    else:
+        return (
+            box.Min.X <= point.X <= box.Max.X
+            and box.Min.Y <= point.Y <= box.Max.Y
+        )
+
+
+def is_inside_view(point, view, include_z=True):
+    assert(type(view) is ViewPlan)
+    return is_inside_bounding_box(point, view.CropBox, include_z)
+
+
 def is_close(a, b, abs_tol=1e-9):
     return abs(a-b) < abs_tol
 
 
 def is_parallel(v1, v2):
-    return v1.Normalize().IsAlmostEqualTo(v2) \
-           or v1.Normalize().Negate().IsAlmostEqualTo(v2)
+    return (
+        v1.Normalize().IsAlmostEqualTo(v2)
+        or v1.Normalize().Negate().IsAlmostEqualTo(v2)
+    )
 
 
 def is_almost_evenly_divisible(numerator, denominator):
-    while (numerator > denominator):
-        numerator = numerator / denominator
+    isDivisible = is_close(numerator, denominator)
+    while (
+        not isDivisible
+        and numerator > denominator
+    ):
+        numerator /= denominator
+        isDivisible = is_close(numerator, denominator)
 
-    return is_close(numerator, denominator)
+    return isDivisible
 
 
 def draw_BoundingBoxXYZ_2D(doc, view, bounding_box):
@@ -81,13 +108,6 @@ def draw_BoundingBoxXYZ_2D(doc, view, bounding_box):
         Line.CreateBound(x1y1, x1y0),
         Line.CreateBound(x1y0, x0y0)
     ]
-    for curve in curves:
-        doc.Create.NewDetailCurve(view, curve)
-
-
-# FIXME: Needs to project edges onto XY plane then draw as detail curves
-def draw_Solid_2D(doc, view, solid):
-    curves = [e.AsCurve() for e in solid.Edges]
     for curve in curves:
         doc.Create.NewDetailCurve(view, curve)
 
@@ -124,36 +144,12 @@ def get_parameter(el, name=None, builtin=None):
     else:
         return None
 
-# # TODO: Test me
-# def get_solids(doc, element, view, options):
-#     if view and not options:
-#         options = Options()
-#         options.View = view
-#     elif not options:
-#         options = Options()
-
-#     # Recursively iterate over GeometryElement chaining
-#     # all solids into a list
-#     def extract_solids(geometry_element):
-#         geometry_elements = [
-#             o for o in geometry_element
-#             if type(o) == GeometryElement
-#         ]
-#         solids = list(chain(
-#             [o for o in geometry_element if type(o) == Solid],
-#             chain(extract_solids(e) for e in geometry_elements)
-#         ))
-#         return solids
-
-#     geometry_element = element.get_Geometry(options)
-#     return extract_solids(geometry_element)
-
 
 def has_electrical_connectors(element):
     return (
         element.MEPModel
         and element.MEPModel.ConnectorManager
-        and not element.MEPModel.ConnectorManager.Connectors.IsEmpty()
+        and not element.MEPModel.ConnectorManager.Connectors.IsEmpty
     )
 
 
