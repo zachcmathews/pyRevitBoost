@@ -3,7 +3,7 @@
 from itertools import chain
 
 from Autodesk.Revit.DB import (GeometryInstance, HostObjectUtils, Options,
-                               ShellLayerType)
+                               ShellLayerType, XYZ)
 
 from rpw.db import Collector
 
@@ -26,7 +26,7 @@ def find_family_type(category, family, family_type):
         return typeToPlace
 
 
-def find_nearest_ceiling_face(location):
+def find_nearest_ceiling_face(location, tolerance=1e-9):
     ceiling_face_refs = get_ceiling_faces()
 
     nearest = {
@@ -60,7 +60,12 @@ def find_nearest_ceiling_face(location):
                         'distance': distance
                     }
 
-    return nearest if not any(v is None for v in nearest.values()) else None
+    if any(v is None for v in nearest.values()):
+        return None
+    else:
+        direction = nearest['point'] - location
+        isDirectlyAbove = direction.AngleTo(XYZ.BasisZ) < tolerance
+        return nearest if isDirectlyAbove else None
 
 
 def find_nearest_wall_face(location, tolerance):

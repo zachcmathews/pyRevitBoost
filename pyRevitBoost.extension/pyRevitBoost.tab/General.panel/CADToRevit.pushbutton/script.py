@@ -21,7 +21,7 @@ Requires configuration specified in config.yaml.
 Shift+Click = Draw circle at block locations. Useful for setting \
 offsets in config.yaml.
 '''
-__title__ = 'Convert\nDWG Blocks'
+__title__ = 'CAD -> Revit'
 __author__ = 'Zachary Mathews'
 
 start_time = time.time()
@@ -90,7 +90,7 @@ with forms.ProgressBar(title='{value} of {max_value}', step=20) as pb:
                         view=view,
                         level=level,
                     )
-                except ArgumentException:
+                except (TypeError, ArgumentException):
                     failed.append(block)
                 finally:
                     cnt += 1

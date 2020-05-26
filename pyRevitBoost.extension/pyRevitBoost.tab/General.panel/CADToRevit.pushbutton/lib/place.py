@@ -1,10 +1,12 @@
 # pylint: disable=import-error
-from Autodesk.Revit.DB import ElementTransformUtils, Line, Reference, Transform, XYZ
+from Autodesk.Revit.DB import (ElementTransformUtils, Line, Reference,
+                               Transform, XYZ)
 from Autodesk.Revit.DB.Structure import StructuralType
 from Autodesk.Revit.Exceptions import ArgumentException
 
 from boostutils import get_parameter
-from gather import find_nearest_ceiling_face, find_nearest_wall_face, find_reference_plane
+from gather import (find_nearest_ceiling_face, find_nearest_wall_face,
+                    find_reference_plane)
 
 
 def map_block_to_family_instance(
@@ -94,19 +96,19 @@ def map_block_to_family_instance(
             block_orientation + orientation_offset
         )
 
-    # Set family instance parameters
-    set_parameters(
-        el=family_instance,
-        parameters=parameters,
-        units=doc.GetUnits()
-    )
-
     # Set schedule level to allow changing elevation
     schedule_level = get_parameter(
         el=family_instance,
         builtin='INSTANCE_SCHEDULE_ONLY_LEVEL_PARAM'
     )
     schedule_level.Set(level.Id)
+
+    # Set family instance parameters
+    set_parameters(
+        el=family_instance,
+        parameters=parameters,
+        units=doc.GetUnits()
+    )
 
     return family_instance
 
@@ -118,6 +120,16 @@ def place_on_ceiling(family_type, ceiling, level, doc):
         ceiling['point'],
         direction,
         family_type
+    )
+
+    # Negate direction of ceiling
+    orientation = XYZ.BasisX.AngleTo(direction)
+    z_axis = Line.CreateBound(ceiling['point'], ceiling['point'] + XYZ.BasisZ)
+    ElementTransformUtils.RotateElement(
+        doc,
+        family_instance.Id,
+        z_axis,
+        -orientation
     )
 
     return family_instance
