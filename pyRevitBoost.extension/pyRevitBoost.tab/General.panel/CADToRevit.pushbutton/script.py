@@ -53,6 +53,14 @@ if len(cad_imports) > 1:
         name_attr='Name'
     )
 else:
+    forms.alert(
+        title='Convert CAD to Revit',
+        msg='Are you sure you wish to map CAD blocks to Revit families?',
+        ok=False,
+        yes=True,
+        no=True,
+        exitscript=True
+    )
     [cad_import] = cad_imports
 
 if not cad_import:
