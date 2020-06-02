@@ -17,6 +17,8 @@ from align import (align_ceiling_representation_with_gridlines,
 __doc__ = '''Align ceilings with fixtures.'''
 __title__ = 'Align\nCeilings'
 __author__ = 'Zachary Mathews'
+__context__ = 'Ceilings'
+__cleanengine__ = True
 
 uidoc = rpw.revit.uidoc
 doc = rpw.revit.doc

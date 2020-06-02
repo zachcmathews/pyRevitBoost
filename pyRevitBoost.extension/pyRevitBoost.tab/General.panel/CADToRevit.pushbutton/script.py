@@ -23,6 +23,7 @@ offsets in config.yaml.
 '''
 __title__ = 'CAD -> Revit'
 __author__ = 'Zachary Mathews'
+__cleanengine__ = True
 
 start_time = time.time()
 
@@ -69,6 +70,12 @@ failed = []
 with forms.ProgressBar(title='{value} of {max_value}', step=20) as pb:
     with rpw.db.Transaction('CAD -> Revit') as t:
         for block_name, blocks in blocks_grouped_by_name.items():
+            if not config:
+                no_mapping[block_name] = blocks
+                cnt += len(blocks)
+                pb.update_progress(cnt, total)
+                continue
+
             mapping = parse_config(block_name, config, doc)
             if not mapping:
                 no_mapping[block_name] = blocks

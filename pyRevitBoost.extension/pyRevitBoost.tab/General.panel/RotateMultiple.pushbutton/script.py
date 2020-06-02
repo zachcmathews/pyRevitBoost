@@ -10,6 +10,7 @@ import rpw
 __doc__ = "Rotate multiple elements about their origins."
 __title__ = "Rotate\nMultiple"
 __author__ = "Zachary Mathews"
+__context__ = "Selection"
 
 uidoc = rpw.revit.uidoc
 doc = rpw.revit.doc
