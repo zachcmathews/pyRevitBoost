@@ -1,11 +1,39 @@
 # pylint: disable=import-error
-# from itertools import chain
-from Autodesk.Revit.DB import (Domain, Line, XYZ)
+import clr
+clr.AddReference('System.Core')
+from System.Dynamic import ExpandoObject
+
+import math
+import inspect
+
+from Autodesk.Revit.DB import (BuiltInParameter, Domain, Ellipse, Line,
+                               ViewPlan, XYZ)
 
 from pyrevit.coreutils import yaml
+import rpw
 
 
-def _convert_yamldotnet_to_python(ynode, level=0):
+class memoize(object):
+    def __init__(self, func):
+        self.func = func
+        self.cache = {}
+
+    def __call__(self, *args, **kwargs):
+        key = self.key(args, kwargs)
+        if key not in self.cache:
+            self.cache[key] = self.func(*args, **kwargs)
+        return self.cache[key]
+
+    def normalize_args(self, args, kwargs):
+        spec = inspect.getargs(self.func.__code__).args
+        return dict(kwargs.items() + zip(spec, args))
+
+    def key(self, args, kwargs):
+        normalized_args = self.normalize_args(args, kwargs)
+        return tuple(sorted(normalized_args.items()))
+
+
+def _convert_yamldotnet_to_python(ynode, level=0, convert_booleans=False):
     if hasattr(ynode, 'Children'):
         d = {}
         value_childs = []
@@ -30,20 +58,46 @@ def _convert_yamldotnet_to_python(ynode, level=0):
         return ynode.Value
 
 
+def is_inside_bounding_box(point, box, include_z=True):
+    if include_z:
+        return (
+            box.Min.X <= point.X <= box.Max.X
+            and box.Min.Y <= point.Y <= box.Max.Y
+            and box.Min.Z <= point.Z <= box.Max.Z
+        )
+    else:
+        return (
+            box.Min.X <= point.X <= box.Max.X
+            and box.Min.Y <= point.Y <= box.Max.Y
+        )
+
+
+def is_inside_view(point, view, include_z=True):
+    assert(type(view) is ViewPlan)
+    return is_inside_bounding_box(point, view.CropBox, include_z)
+
+
 def is_close(a, b, abs_tol=1e-9):
     return abs(a-b) < abs_tol
 
 
 def is_parallel(v1, v2):
-    return v1.Normalize().IsAlmostEqualTo(v2) \
-           or v1.Normalize().Negate().IsAlmostEqualTo(v2)
+    return (
+        v1.Normalize().IsAlmostEqualTo(v2)
+        or v1.Normalize().Negate().IsAlmostEqualTo(v2)
+    )
 
 
 def is_almost_evenly_divisible(numerator, denominator):
-    while (numerator > denominator):
-        numerator = numerator / denominator
+    isDivisible = is_close(numerator, denominator)
+    while (
+        not isDivisible
+        and numerator > denominator
+    ):
+        numerator /= denominator
+        isDivisible = is_close(numerator, denominator)
 
-    return is_close(numerator, denominator)
+    return isDivisible
 
 
 def draw_BoundingBoxXYZ_2D(doc, view, bounding_box):
@@ -62,11 +116,16 @@ def draw_BoundingBoxXYZ_2D(doc, view, bounding_box):
         doc.Create.NewDetailCurve(view, curve)
 
 
-# FIXME: Needs to project edges onto XY plane then draw as detail curves
-def draw_Solid_2D(doc, view, solid):
-    curves = [e.AsCurve() for e in solid.Edges]
-    for curve in curves:
-        doc.Create.NewDetailCurve(view, curve)
+def expando_to_dict(expando):
+    e = ExpandoObject()
+    default_attrs = dir(e)
+    keys = filter(lambda a: a not in default_attrs, dir(expando))
+
+    d = {}
+    for k in keys:
+        d[k] = getattr(expando, k)
+
+    return d
 
 
 def find_closest(to, elements):
@@ -79,9 +138,21 @@ def find_closest(to, elements):
     )
 
 
-def get_parameter(el, name):
-    instanceParam = el.LookupParameter(name)
-    typeParam = el.Symbol.LookupParameter(name)
+def get_name(el):
+    return rpw.db.Element(el).name
+
+
+def get_parameter(el, name=None, builtin=None):
+    if builtin:
+        param = getattr(BuiltInParameter, builtin)
+        instanceParam = el.get_Parameter(param)
+        typeParam = el.Symbol.get_Parameter(param)
+    elif name:
+        instanceParam = el.LookupParameter(name)
+        typeParam = el.Symbol.LookupParameter(name)
+    else:
+        return None
+
     if instanceParam:
         return instanceParam
     elif typeParam:
@@ -90,36 +161,11 @@ def get_parameter(el, name):
         return None
 
 
-# # TODO: Test me
-# def get_solids(doc, element, view, options):
-#     if view and not options:
-#         options = Options()
-#         options.View = view
-#     elif not options:
-#         options = Options()
-
-#     # Recursively iterate over GeometryElement chaining
-#     # all solids into a list
-#     def extract_solids(geometry_element):
-#         geometry_elements = [
-#             o for o in geometry_element
-#             if type(o) == GeometryElement
-#         ]
-#         solids = list(chain(
-#             [o for o in geometry_element if type(o) == Solid],
-#             chain(extract_solids(e) for e in geometry_elements)
-#         ))
-#         return solids
-
-#     geometry_element = element.get_Geometry(options)
-#     return extract_solids(geometry_element)
-
-
 def has_electrical_connectors(element):
     return (
         element.MEPModel
         and element.MEPModel.ConnectorManager
-        and not element.MEPModel.ConnectorManager.Connectors.IsEmpty()
+        and not element.MEPModel.ConnectorManager.Connectors.IsEmpty
     )
 
 
@@ -133,9 +179,30 @@ def get_electrical_connectors(element, default=[]):
         return default
 
 
-def load_as_python(yaml_file):
-    return _convert_yamldotnet_to_python(yaml.load(yaml_file))
+def load_as_python(yaml_file, convert_booleans=False):
+    yamldotnet = yaml.load(yaml_file)
+    return _convert_yamldotnet_to_python(
+        yamldotnet, convert_booleans
+    ) if yamldotnet else None
 
 
 def to_XY(xyz):
     return XYZ(xyz.X, xyz.Y, 0)
+
+
+def draw_circle(center, radius, view, doc):
+    xaxis, yaxis = XYZ.BasisX, XYZ.BasisY
+    start, end = 0, 2*math.pi
+    circle = Ellipse.CreateCurve(
+        center,
+        radius,
+        radius,
+        xaxis,
+        yaxis,
+        start,
+        end
+    )
+    doc.Create.NewDetailCurve(
+        view,
+        circle
+    )
