@@ -1,4 +1,5 @@
 # pylint: disable=import-error
+import os
 import sys
 import time
 
@@ -14,7 +15,7 @@ from gather import (get_blocks, get_cad_imports,
                     get_family_types, get_reference_planes,
                     group_blocks_by_name)
 
-__doc__ = '''\
+__doc__ = '''
 Map imported CAD blocks to their equivalent Revit family type. \
 Requires configuration specified in config.yaml.
 
@@ -32,20 +33,45 @@ uidoc = rpw.revit.uidoc
 view = uidoc.ActiveView
 level = view.GenLevel
 
-config = load_as_python(script.get_bundle_file('config.yaml'))
+script_config = script.get_config(section='pyRevitBoost.General.CADToRevit')
+reuse_config = False
+if hasattr(script_config, 'config_file'):
+    config_file=script_config.config_file
+    if os.path.isfile(script_config.config_file):
+        reuse_config = forms.alert(
+            title='CAD -> Revit',
+            msg='Reuse previous configuration?',
+            sub_msg='{:60}'.format(config_file),
+            ok=False,
+            yes=True,
+            no=True,
+            warn_icon=False
+        )
+if not reuse_config:
+    with forms.WarningBar(title='Please select a configuration file'):
+        config_file = forms.pick_file(
+            file_ext='yaml',
+            restore_dir=True
+        )
+if not config_file:
+    sys.exit()
+
+config = load_as_python(config_file)
+if config is not None:
+    script_config.config_file = config_file
+    script.save_config()
 
 family_types = get_family_types()
 reference_planes = get_reference_planes()
 cad_imports = get_cad_imports()
-
-# Select DWG import if more than one
 if not cad_imports:
     forms.alert(
-        title='No CAD import (or none selected)',
+        title='No CAD import',
         msg='You must have a CAD import to use this command.'
     )
     sys.exit()
 
+# Select DWG import if more than one
 if len(cad_imports) > 1:
     cad_import = forms.SelectFromList.show(
         title='Select CAD Import to Map to Revit',
@@ -53,14 +79,6 @@ if len(cad_imports) > 1:
         name_attr='Name'
     )
 else:
-    forms.alert(
-        title='Convert CAD to Revit',
-        msg='Are you sure you wish to map CAD blocks to Revit families?',
-        ok=False,
-        yes=True,
-        no=True,
-        exitscript=True
-    )
     [cad_import] = cad_imports
 
 if not cad_import:
@@ -129,5 +147,6 @@ results = (
 )
 forms.alert(
     title='Results',
-    msg='{}\n\n{}'.format(config_warning, results)
+    msg='{}\n\n{}'.format(config_warning, results),
+    warn_icon=False
 )
