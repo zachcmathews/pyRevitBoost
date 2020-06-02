@@ -1,4 +1,8 @@
 # pylint: disable=import-error
+import clr
+clr.AddReference('System.Core')
+from System.Dynamic import ExpandoObject
+
 import math
 import inspect
 
@@ -29,7 +33,7 @@ class memoize(object):
         return tuple(sorted(normalized_args.items()))
 
 
-def _convert_yamldotnet_to_python(ynode, level=0):
+def _convert_yamldotnet_to_python(ynode, level=0, convert_booleans=False):
     if hasattr(ynode, 'Children'):
         d = {}
         value_childs = []
@@ -112,6 +116,18 @@ def draw_BoundingBoxXYZ_2D(doc, view, bounding_box):
         doc.Create.NewDetailCurve(view, curve)
 
 
+def expando_to_dict(expando):
+    e = ExpandoObject()
+    default_attrs = dir(e)
+    keys = filter(lambda a: a not in default_attrs, dir(expando))
+
+    d = {}
+    for k in keys:
+        d[k] = getattr(expando, k)
+
+    return d
+
+
 def find_closest(to, elements):
     return min(
         elements,
@@ -163,8 +179,11 @@ def get_electrical_connectors(element, default=[]):
         return default
 
 
-def load_as_python(yaml_file):
-    return _convert_yamldotnet_to_python(yaml.load(yaml_file))
+def load_as_python(yaml_file, convert_booleans=False):
+    yamldotnet = yaml.load(yaml_file)
+    return _convert_yamldotnet_to_python(
+        yamldotnet, convert_booleans
+    ) if yamldotnet else None
 
 
 def to_XY(xyz):

@@ -8,7 +8,7 @@ from Autodesk.Revit.DB import Transform, UnitFormatUtils, UnitType, XYZ
 
 regex = {
     'block': re.compile(r'^.*\.(?P<name>.+?)(_[0-9]+){0,1}$'),
-    'host': re.compile(r'^(?<type>Ceiling|Reference Plane|Level|Wall|Wall and Level) *(\((?<param>.+)\)){0,1}$'),
+    'host': re.compile(r'^(?P<type>Ceiling|Reference Plane|Level|Wall|Wall and Level) *(\((?P<param>.+)\)){0,1}$'),
     'origin-offset': re.compile(r'^\((?P<x>[0-9-\'"\/. ]+){0,1}, *(?P<y>[0-9-\'"\/. ]+){0,1}\)$'),
     'orientation-offset': re.compile(r'^(?P<angle>-{0,1}[0-9]*(\.[0-9]+){0,1}) *(?P<unit>deg|rad|°){0,1}$'),
     'parameter': re.compile(r'^(?P<name>.+?)\s*<(?P<type>True/False|Text|Length|Number)>\s*=\s*(?P<value>.*)$')

@@ -11,6 +11,7 @@ import rpw
 __doc__ = '''Filter based on lower taxonomies.'''
 __title__ = 'Filter'
 __author__ = 'Zachary Mathews'
+__context__ = 'Selection'
 
 class FilterForm(forms.WPFWindow):
     def __init__(self, xaml):

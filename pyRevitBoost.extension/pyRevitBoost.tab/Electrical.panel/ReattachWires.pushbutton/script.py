@@ -20,6 +20,7 @@ copying, etc.
 '''
 __title__ = 'Reattach\nWires'
 __author__ = 'Zachary Mathews'
+__context__ = 'Wires'
 
 uidoc = rpw.revit.uidoc
 doc = rpw.revit.doc
