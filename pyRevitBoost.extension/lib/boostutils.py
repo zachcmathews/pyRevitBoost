@@ -116,6 +116,24 @@ def draw_BoundingBoxXYZ_2D(doc, view, bounding_box):
         doc.Create.NewDetailCurve(view, curve)
 
 
+def draw_circle(center, radius, view, doc):
+    xaxis, yaxis = XYZ.BasisX, XYZ.BasisY
+    start, end = 0, 2*math.pi
+    circle = Ellipse.CreateCurve(
+        center,
+        radius,
+        radius,
+        xaxis,
+        yaxis,
+        start,
+        end
+    )
+    doc.Create.NewDetailCurve(
+        view,
+        circle
+    )
+
+
 def expando_to_dict(expando):
     e = ExpandoObject()
     default_attrs = dir(e)
@@ -131,10 +149,7 @@ def expando_to_dict(expando):
 def find_closest(to, elements):
     return min(
         elements,
-        key=lambda e:
-            e.Location.Point.DistanceTo(
-                to.Location.Point
-            )
+        key=lambda e: e.Location.Point.DistanceTo(to.Location.Point)
     )
 
 
@@ -159,6 +174,17 @@ def get_parameter(el, name=None, builtin=None):
         return typeParam
     else:
         return None
+
+
+def get_parameters(el):
+    instance_params = [p for p in el.Parameters]
+    if el.Symbol:
+        type_params = [p for p in el.Symbol.Parameters]
+
+    return {
+        'instance': instance_params,
+        'type': type_params if type_params else []
+    }
 
 
 def has_electrical_connectors(element):
@@ -188,21 +214,3 @@ def load_as_python(yaml_file, convert_booleans=False):
 
 def to_XY(xyz):
     return XYZ(xyz.X, xyz.Y, 0)
-
-
-def draw_circle(center, radius, view, doc):
-    xaxis, yaxis = XYZ.BasisX, XYZ.BasisY
-    start, end = 0, 2*math.pi
-    circle = Ellipse.CreateCurve(
-        center,
-        radius,
-        radius,
-        xaxis,
-        yaxis,
-        start,
-        end
-    )
-    doc.Create.NewDetailCurve(
-        view,
-        circle
-    )

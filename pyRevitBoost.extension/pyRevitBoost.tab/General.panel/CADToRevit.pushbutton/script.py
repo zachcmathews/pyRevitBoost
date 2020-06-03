@@ -1,4 +1,5 @@
 # pylint: disable=import-error
+import os
 import sys
 import time
 
@@ -6,7 +7,7 @@ from Autodesk.Revit.Exceptions import ArgumentException
 
 import rpw
 from pyrevit import forms, script
-from boostutils import load_as_python
+from boostutils import get_parameter, load_as_python
 
 from parse import parse_config
 from place import map_block_to_family_instance
@@ -18,8 +19,10 @@ __doc__ = '''\
 Map imported CAD blocks to their equivalent Revit family type. \
 Requires configuration specified in config.yaml.
 
-Shift+Click = Draw circle at block locations. Useful for setting \
+Shift+Click =
+    - Draw circle at block locations. Useful for setting \
 offsets in config.yaml.
+    - Edit configuration file.
 '''
 __title__ = 'CAD -> Revit'
 __author__ = 'Zachary Mathews'
@@ -32,31 +35,58 @@ uidoc = rpw.revit.uidoc
 view = uidoc.ActiveView
 level = view.GenLevel
 
-config = load_as_python(script.get_bundle_file('config.yaml'))
+script_config = script.get_config(section='pyRevitBoost.General.CADToRevit')
+reuse_config = False
+if hasattr(script_config, 'config_file'):
+    config_file=script_config.config_file
+    if os.path.isfile(script_config.config_file):
+        reuse_config = forms.alert(
+            title='CAD -> Revit',
+            msg='Reuse previous configuration?',
+            sub_msg=config_file,
+            ok=False,
+            yes=True,
+            no=True,
+            warn_icon=False
+        )
+if not reuse_config:
+    with forms.WarningBar(title='Please select a configuration file'):
+        config_file = forms.pick_file(
+            file_ext='yaml',
+            restore_dir=True
+        )
+if not config_file:
+    sys.exit()
+
+config = load_as_python(config_file)
+if config is not None:
+    script_config.config_file = config_file
+    script.save_config()
 
 family_types = get_family_types()
 reference_planes = get_reference_planes()
 cad_imports = get_cad_imports()
-
-# Select DWG import if more than one
 if not cad_imports:
     forms.alert(
-        title='No CAD import (or none selected)',
+        title='No CAD import',
         msg='You must have a CAD import to use this command.'
     )
     sys.exit()
 
+# Select DWG import if more than one
 if len(cad_imports) > 1:
     cad_import = forms.SelectFromList.show(
         title='Select CAD Import to Map to Revit',
         context=cad_imports,
-        name_attr='Name'
+        name_attr='name'
     )
 else:
-    [cad_import] = cad_imports
+    cad_import = cad_imports[0]
 
 if not cad_import:
     sys.exit()
+else:
+    cad_import = cad_import._import   # we no longer care about name
 
 # Gather import geometry
 import_transform = cad_import.GetTotalTransform()
@@ -121,5 +151,6 @@ results = (
 )
 forms.alert(
     title='Results',
-    msg='{}\n\n{}'.format(config_warning, results)
+    msg='{}\n\n{}'.format(config_warning, results),
+    warn_icon=False
 )
