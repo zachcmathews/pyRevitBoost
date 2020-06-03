@@ -75,11 +75,11 @@ with forms.ProgressBar(title='{value} of {max_value}') as pb:
 
             closest_to_start = min(
                 connectors,
-                key=lambda c: c.Owner.Location.Point.DistanceTo(start)
+                key=lambda c: to_XY(c.Owner.Location.Point).DistanceTo(start)
             )
             closest_to_end = min(
                 connectors,
-                key=lambda c: c.Owner.Location.Point.DistanceTo(end)
+                key=lambda c: to_XY(c.Owner.Location.Point).DistanceTo(end)
             )
             try:
                 wire.ConnectTo(closest_to_start, closest_to_end)
