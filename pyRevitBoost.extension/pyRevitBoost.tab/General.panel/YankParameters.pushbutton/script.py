@@ -54,6 +54,7 @@ if mappings:
     script_config.config_file = config_file
     script.save_config()
 
+
 def family_filter(el, family):
     return (
         get_parameter(
@@ -172,9 +173,6 @@ def yank(pair, mapping):
     for name in mapping['to']['parameters']:
         parameter = get_parameter(pair['to'], name=name)
         parameter.Set(value)
-
-
-def remove()
 
 
 cnt = 0

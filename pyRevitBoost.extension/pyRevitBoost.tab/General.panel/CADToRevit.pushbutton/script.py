@@ -15,7 +15,7 @@ from gather import (get_blocks, get_cad_imports,
                     get_family_types, get_reference_planes,
                     group_blocks_by_name)
 
-__doc__ = '''\
+__doc__ = u'''\
 Map imported CAD blocks to their equivalent Revit family type. \
 Requires configuration specified in config.yaml.
 
@@ -24,7 +24,7 @@ Shift+Click =
 offsets in config.yaml.
     - Edit configuration file.
 '''
-__title__ = 'CAD -> Revit'
+__title__ = u'CAD\U00002b62Revit'
 __author__ = 'Zachary Mathews'
 __cleanengine__ = True
 
