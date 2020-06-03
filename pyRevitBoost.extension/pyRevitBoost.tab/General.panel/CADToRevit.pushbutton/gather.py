@@ -1,4 +1,3 @@
-
 # pylint: disable=import-error
 from itertools import chain
 
@@ -9,6 +8,12 @@ from rpw.db import Collector
 
 from boostutils import get_name, memoize
 from parse import parse_block_name
+
+# To make this work with SelectFromList form, name must be an object attribute
+class _cad_import():
+    def __init__(self, name, _import):
+        self.name = name
+        self._import = _import  # import is protected keyword
 
 
 def find_family_type(category, family, family_type):
@@ -136,8 +141,16 @@ def get_blocks(cad_import):
 
 
 def get_cad_imports():
-    return Collector(of_class='ImportInstance').get_elements(wrapped=False)
+    cad_imports = Collector(
+        of_class='ImportInstance'
+    ).get_elements(wrapped=False)
 
+    return [
+        _cad_import(
+            name='{}: {}'.format(i.Category.Name, i.Id),
+            _import=i
+        ) for i in cad_imports
+    ]
 
 @memoize
 def get_ceilings():
