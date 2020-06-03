@@ -7,7 +7,7 @@ from Autodesk.Revit.Exceptions import ArgumentException
 
 import rpw
 from pyrevit import forms, script
-from boostutils import load_as_python
+from boostutils import get_parameter, load_as_python
 
 from parse import parse_config
 from place import map_block_to_family_instance
@@ -15,12 +15,14 @@ from gather import (get_blocks, get_cad_imports,
                     get_family_types, get_reference_planes,
                     group_blocks_by_name)
 
-__doc__ = '''
+__doc__ = '''\
 Map imported CAD blocks to their equivalent Revit family type. \
 Requires configuration specified in config.yaml.
 
-Shift+Click = Draw circle at block locations. Useful for setting \
+Shift+Click =
+    - Draw circle at block locations. Useful for setting \
 offsets in config.yaml.
+    - Edit configuration file.
 '''
 __title__ = 'CAD -> Revit'
 __author__ = 'Zachary Mathews'
@@ -41,7 +43,7 @@ if hasattr(script_config, 'config_file'):
         reuse_config = forms.alert(
             title='CAD -> Revit',
             msg='Reuse previous configuration?',
-            sub_msg='{:60}'.format(config_file),
+            sub_msg=config_file,
             ok=False,
             yes=True,
             no=True,
@@ -76,13 +78,15 @@ if len(cad_imports) > 1:
     cad_import = forms.SelectFromList.show(
         title='Select CAD Import to Map to Revit',
         context=cad_imports,
-        name_attr='Name'
+        name_attr='name'
     )
 else:
-    [cad_import] = cad_imports
+    cad_import = cad_imports[0]
 
 if not cad_import:
     sys.exit()
+else:
+    cad_import = cad_import._import   # we no longer care about name
 
 # Gather import geometry
 import_transform = cad_import.GetTotalTransform()
