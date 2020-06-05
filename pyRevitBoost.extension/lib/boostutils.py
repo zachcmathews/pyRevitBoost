@@ -212,7 +212,7 @@ def load_as_python(yaml_file, convert_booleans=False):
     ) if yamldotnet else None
 
 
-def load_tsv(file, headers, skip_first=False):
+def load_tsv(file, use_headers, skip_first=False):
     out = []
     error_codes = [
         '#VALUE!', '#NAME?', '#DIV/0!', '#REF!',
@@ -221,6 +221,12 @@ def load_tsv(file, headers, skip_first=False):
     with open(file, 'r') as f:
         if skip_first:
             f.readline()
+
+        if type(use_headers) is list:
+            headers = use_headers
+        else:
+            headers = f.readline().rstrip('\n').split('\t')
+
         for line in f.readlines():
             dict = {}
             for header, val in zip(headers, line.rstrip('\n').split('\t')):

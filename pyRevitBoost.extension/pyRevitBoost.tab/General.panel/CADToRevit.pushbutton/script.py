@@ -64,7 +64,7 @@ if config_file.endswith('.yaml'):
 elif config_file.endswith('.tsv'):
     config = load_tsv(
         config_file,
-        headers=['block', 'category', 'family', 'type', 'host'],
+        use_headers=['block', 'category', 'family', 'type', 'host'],
         skip_first=True
     )
 
