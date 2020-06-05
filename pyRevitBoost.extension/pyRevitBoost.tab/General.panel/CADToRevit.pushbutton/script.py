@@ -7,7 +7,7 @@ from Autodesk.Revit.Exceptions import ArgumentException
 
 import rpw
 from pyrevit import forms, script
-from boostutils import get_parameter, load_as_python
+from boostutils import get_parameter, load_as_python, load_tsv
 
 from parse import parse_config
 from place import map_block_to_family_instance
@@ -52,13 +52,22 @@ if hasattr(script_config, 'config_file'):
 if not reuse_config:
     with forms.WarningBar(title='Please select a configuration file'):
         config_file = forms.pick_file(
-            file_ext='yaml',
+            files_filter='YAML Configuration File (*.yaml)|*.yaml|'
+                         'Tab-separated Values File (*.tsv)|*.tsv',
             restore_dir=True
         )
 if not config_file:
     sys.exit()
 
-config = load_as_python(config_file)
+if config_file.endswith('.yaml'):
+    config = load_as_python(config_file)
+elif config_file.endswith('.tsv'):
+    config = load_tsv(
+        config_file,
+        use_headers=['block', 'category', 'family', 'type', 'host'],
+        skip_first=True
+    )
+
 if config is not None:
     script_config.config_file = config_file
     script.save_config()
