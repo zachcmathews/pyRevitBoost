@@ -161,10 +161,12 @@ def get_parameter(el, name=None, builtin=None):
     if builtin:
         param = getattr(BuiltInParameter, builtin)
         instanceParam = el.get_Parameter(param)
-        typeParam = el.Symbol.get_Parameter(param)
+        if not instanceParam:
+            typeParam = el.Symbol.get_Parameter(param)
     elif name:
         instanceParam = el.LookupParameter(name)
-        typeParam = el.Symbol.LookupParameter(name)
+        if not instanceParam:
+            typeParam = el.Symbol.LookupParameter(name)
     else:
         return None
 
