@@ -1,9 +1,9 @@
 import sys
 import os
 import re
-from collections import OrderedDict
 import codecs
 import shutil
+from collections import OrderedDict
 
 from Autodesk.Revit.DB import StorageType
 
@@ -53,7 +53,7 @@ def extract_family(family_doc):
 def extract_parameters(family_doc):
     fm = family_doc.FamilyManager
     types = [t for t in fm.Types]
-    params = [p for p in fm.Parameters if p.UserModifiable]
+    params = [p for p in fm.GetParameters() if p.UserModifiable]
 
     extracted = dict((t.Name, []) for t in types)
     for t in types:
@@ -106,6 +106,8 @@ def format_dict_as_tsv(d):
     for v in d.values():
         if isinstance(v, dict) or isinstance(v, OrderedDict):
             tsv.append(format_dict_as_tsv(v))
+        elif isinstance(v, list):
+            tsv.append(format_list_as_tsv(v))
         else:
             tsv.append(str(v))
 
@@ -169,7 +171,7 @@ if __name__ == '__main__':
                         ('category', category),
                         ('family', family),
                         ('type', type),
-                        ('parameters', format_list_as_tsv(parameters))
+                        ('parameters', parameters)
                     ]))
                     f.write(line + '\n')
 
