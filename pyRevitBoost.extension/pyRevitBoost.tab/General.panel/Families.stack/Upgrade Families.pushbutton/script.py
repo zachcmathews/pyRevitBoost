@@ -52,7 +52,6 @@ if __name__ == '__main__':
         title='{value} of {max_value}',
         cancellable=True
     ) as pb:
-        max_num_parameters = 0
         for path in paths:
             try:
                 doc = app.OpenDocumentFile(path)
