@@ -14,8 +14,8 @@ from boostutils import memoize
 __doc__ = '''\
 Update parameters for all families in a directory.
 '''
-__title__ = 'Update Family Parameters'
 __author__ = 'Zachary Mathews'
+__context__ = 'zerodoc'
 
 uiapp = rpw.revit.uiapp
 app = uiapp.Application
@@ -26,19 +26,22 @@ def diff_tsv(old, new):
     with codecs.open(old, 'r', encoding='utf8') as f:
         f.readline()    # don't care about header
         for line in f.readlines():
-            old_lines.append(line.rstrip('\t\n'))
+            line = line.rstrip('\t\n')
+            if line:
+                old_lines.append(line)
 
-    changed_lines = []
+    updated_lines = []
     with codecs.open(new, 'r', encoding='utf8') as f:
         f.readline()    # don't care about header
         for line in f.readlines():
             line = line.rstrip('\t\r\n')\
                        .replace('TRUE', 'True')\
                        .replace('FALSE', 'False')
-            if line not in old_lines and line.split('\t')[0]:
-                changed_lines.append(line)
 
-    return changed_lines
+            if line and line not in old_lines:
+                updated_lines.append(line)
+
+    return (old_lines, updated_lines)
 
 
 def create_header(tsv, num_parameters):
@@ -111,7 +114,7 @@ def parse_line(line):
         ('path', values[0]),
         ('category', values[1]),
         ('family', values[2]),
-        ('type', values[3]),
+        ('type', values[3] if len(values) > 3 else ' '),    # Gsheets strips spaces
         ('parameters', [])
     ])
 
@@ -124,6 +127,13 @@ def parse_line(line):
         param = OrderedDict()
         for j, col_name in enumerate(parameter_cols):
             if i+j < len(values):
+                # Formulas evaluating to text have to be wrapped,
+                # otherwise Google Sheets strips quotes
+                if col_name == 'formula':
+                    value = values[i+j]
+                    if value.startswith('<text>') and value.endswith('</text>'):
+                        value = value.lstrip('<text>').rstrip('</text>')
+
                 param[col_name] = values[i+j]
             else:
                 param[col_name] = ''
@@ -319,35 +329,25 @@ if __name__ == '__main__':
             exitscript=True
         )
 
-    # Parse tsv
-    old_lines = []
-    with codecs.open(old, 'r', encoding='utf8') as f:
-        f.readline()    # don't care about header
-        for line in f.readlines():
-            old_lines.append(line)
-
-    parsed_old_lines = [parse_line(l) for l in old_lines]
-    existing_families = group_by_path(parsed_old_lines)
-
-    new_lines = diff_tsv(old=old, new=new)
-    if not new_lines:
+    (old_lines, updated_lines) = diff_tsv(old=old, new=new)
+    if not updated_lines:
         forms.alert(
             title='No updates found',
             msg='Could not find any updates in the provided tsv file.',
             exitscript=True
         )
 
-    parsed_new_lines = [parse_line(l) for l in new_lines]
-    updated_families = group_by_path(parsed_new_lines)
-    forms.alert(
-        title='Continue?',
-        msg=('The following families will be updated:\n' +
-             '\n'.join(updated_families)),
-        ok=True,
-        cancel=True,
-        exitscript=True
+    parsed_old_lines = [parse_line(l) for l in old_lines]
+    existing_families = group_by_path(parsed_old_lines)
+    parsed_updated_lines = [parse_line(l) for l in updated_lines]
+    updated_families = group_by_path(parsed_updated_lines)
+    selected_updates = forms.SelectFromList.show(
+        title='Apply updates',
+        context=updated_families.keys(),
+        multiselect=True
     )
 
+    sys.exit()
     cnt = 0
     total = len(updated_families)
     failed = []
@@ -356,7 +356,7 @@ if __name__ == '__main__':
         cancellable=True
     ) as pb:
         for path in existing_families.keys():
-            if path not in updated_families.keys():
+            if path not in selected_updates:
                 continue
 
             doc = app.OpenDocumentFile(path)
