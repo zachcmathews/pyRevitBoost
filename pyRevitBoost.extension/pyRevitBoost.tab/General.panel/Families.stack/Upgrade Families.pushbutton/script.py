@@ -28,6 +28,16 @@ def get_family_paths(directory):
     return family_paths
 
 
+def get_revision_paths(directory):
+    for root, subdirs, files in os.walk(directory):
+        for file in files:
+            isFamilyDoc = file.endswith('.rfa')
+            isRevision = re.search(r'^.+\.[0-9]+\.rfa$', file) is not None
+            if isFamilyDoc and isRevision:
+                filepath = os.path.join(root, file)
+                yield filepath
+
+
 if __name__ == '__main__':
     directory = forms.pick_folder(title='Please select directory to '
                                         'search for families.')
@@ -38,7 +48,6 @@ if __name__ == '__main__':
 
     cnt = 0
     total = len(paths)
-    failed = []
     with forms.ProgressBar(
         title='{value} of {max_value}',
         cancellable=True
@@ -56,8 +65,14 @@ if __name__ == '__main__':
             if pb.cancelled:
                 break
 
-    if failed:
-        forms.alert(
-            title='Error: Family could not be loaded',
-            msg='\n'.join(failed)
-        )
+    should_remove_previous_revisions = forms.alert(
+        title='Remove previous versions?',
+        msg='Remove previous versions?',
+        ok=False,
+        yes=True,
+        no=True,
+        exitscript=True
+    )
+    if should_remove_previous_revisions:
+        for revision_path in get_revision_paths(directory):
+            os.remove(revision_path)
