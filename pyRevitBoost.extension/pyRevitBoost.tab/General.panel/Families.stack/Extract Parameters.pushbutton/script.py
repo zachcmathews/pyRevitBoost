@@ -9,13 +9,12 @@ from Autodesk.Revit.DB import StorageType
 
 import rpw
 from pyrevit import forms
-from boostutils import get_parameter
 
 __doc__ = '''\
 Extract parameters from all families in a directory.
 '''
-__title__ = 'Extract Family Parameters'
 __author__ = 'Zachary Mathews'
+__context__ = 'zerodoc'
 
 uiapp = rpw.revit.uiapp
 app = uiapp.Application
@@ -61,6 +60,9 @@ def extract_parameters(family_doc):
             formula, value = '', ''
             if p.IsDeterminedByFormula:
                 formula = p.Formula
+                isString = formula.startswith(r'"') and formula.endswith(r'"')
+                if isString:
+                    formula = '<text>' + formula + '</text>'
             else:
                 if p.StorageType == StorageType.Integer:
                     value = t.AsInteger(p)
@@ -73,16 +75,17 @@ def extract_parameters(family_doc):
                 else:
                     value = None
 
-            extracted[t.Name].append(OrderedDict([
-                ('name', p.Definition.Name),
-                ('type', p.Definition.ParameterType),
-                ('group', p.Definition.ParameterGroup),
-                ('shared', p.IsShared),
-                ('instance', p.IsInstance),
-                ('reporting', p.IsReporting),
-                ('value', value),
-                ('formula', formula)
-            ]))
+            if value is not None:
+                extracted[t.Name].append(OrderedDict([
+                    ('name', p.Definition.Name),
+                    ('type', p.Definition.ParameterType),
+                    ('group', p.Definition.ParameterGroup),
+                    ('shared', p.IsShared),
+                    ('instance', p.IsInstance),
+                    ('reporting', p.IsReporting),
+                    ('value', value),
+                    ('formula', formula)
+                ]))
 
     return extracted
 
@@ -153,29 +156,33 @@ if __name__ == '__main__':
     ) as pb:
         max_num_parameters = 0
         for path in paths:
-            doc = app.OpenDocumentFile(path)
-            category = extract_category(doc)
-            family = extract_family(doc)
-            parameters_by_type = extract_parameters(doc)
+            try:
+                doc = app.OpenDocumentFile(path)
+            except:
+                print("The following family is corrupt: " + path)
+            else:
+                category = extract_category(doc)
+                family = extract_family(doc)
+                parameters_by_type = extract_parameters(doc)
 
-            with codecs.open(tsv, 'a', encoding='utf8') as f:
-                for type, parameters in parameters_by_type.items():
-                    max_num_parameters = (
-                        len(parameters)
-                        if len(parameters) > max_num_parameters
-                        else max_num_parameters
-                    )
+                with codecs.open(tsv, 'a', encoding='utf8') as f:
+                    for type, parameters in parameters_by_type.items():
+                        max_num_parameters = (
+                            len(parameters)
+                            if len(parameters) > max_num_parameters
+                            else max_num_parameters
+                        )
 
-                    line = format_dict_as_tsv(OrderedDict([
-                        ('path', path),
-                        ('category', category),
-                        ('family', family),
-                        ('type', type),
-                        ('parameters', parameters)
-                    ]))
-                    f.write(line + '\n')
+                        line = format_dict_as_tsv(OrderedDict([
+                            ('path', path),
+                            ('category', category),
+                            ('family', family),
+                            ('type', type),
+                            ('parameters', parameters)
+                        ]))
+                        f.write(line + '\n')
 
-            doc.Close(False)
+                doc.Close(False)
 
             cnt += 1
             pb.update_progress(cnt, total)
