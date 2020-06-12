@@ -129,12 +129,12 @@ def parse_line(line):
             if i+j < len(values):
                 # Formulas evaluating to text have to be wrapped,
                 # otherwise Google Sheets strips quotes
+                value = values[i+j]
                 if col_name == 'formula':
-                    value = values[i+j]
                     if value.startswith('<text>') and value.endswith('</text>'):
                         value = value.lstrip('<text>').rstrip('</text>')
 
-                param[col_name] = values[i+j]
+                param[col_name] = value
             else:
                 param[col_name] = ''
 
@@ -346,8 +346,9 @@ if __name__ == '__main__':
         context=updated_families.keys(),
         multiselect=True
     )
+    if not selected_updates:
+        sys.exit()
 
-    sys.exit()
     cnt = 0
     total = len(updated_families)
     failed = []
