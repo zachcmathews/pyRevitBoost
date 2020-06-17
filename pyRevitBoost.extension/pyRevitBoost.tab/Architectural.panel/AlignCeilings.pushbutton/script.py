@@ -61,6 +61,8 @@ fixtures_doc = forms.SelectFromList.show(
     height=400,
     multiselect=False
 )
+if not fixtures_doc:
+    sys.exit()
 
 categories = fixtures_doc.Settings.Categories
 selected_category = forms.SelectFromList.show(
