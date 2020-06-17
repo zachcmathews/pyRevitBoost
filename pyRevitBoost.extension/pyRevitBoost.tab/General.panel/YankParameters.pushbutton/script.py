@@ -4,7 +4,7 @@ import sys
 import re
 from functools import partial
 
-from Autodesk.Revit.DB import BuiltInParameter, FamilyInstance
+from Autodesk.Revit.DB import BuiltInParameter, FamilyInstance, Transform
 
 import rpw
 from pyrevit import script, forms
@@ -42,7 +42,13 @@ def family_filter(el, family):
     )
 
 
-def phase_filter(el, phase, phase_map, current_phase):
+def type_filter(el, type):
+    return (
+        get_parameter(el, builtin='ELEM_TYPE_PARAM').AsValueString() == type
+    )
+
+
+def phase_filter(el, phase, current_phase, phase_map=None):
     if phase_map:
         if phase == '<current>':
             return get_parameter(
@@ -66,12 +72,6 @@ def phase_filter(el, phase, phase_map, current_phase):
                 el,
                 builtin='PHASE_CREATED'
             ).AsValueString() == phase
-
-
-def type_filter(el, type):
-    return (
-        get_parameter(el, builtin='ELEM_TYPE_PARAM').AsValueString() == type
-    )
 
 
 def parameter_filter(el, parameter):
@@ -108,7 +108,7 @@ def parameter_filter(el, parameter):
         return value <= float(filter['value'])
 
 
-def get_filters(mapping, current_phase, link_type):
+def get_filters(mapping, current_phase, phase_map=None):
     global family_filter, type_filter, phase_filter, parameter_filter
     filters = []
 
@@ -130,7 +130,7 @@ def get_filters(mapping, current_phase, link_type):
         phase_filter = partial(
             phase_filter,
             phase=mapping['phase'],
-            phase_map=link_type.GetPhaseMap() if link_type else None,
+            phase_map=phase_map,
             current_phase=current_phase
         )
         filters.append(phase_filter)
@@ -149,11 +149,8 @@ def get_filters(mapping, current_phase, link_type):
 def pair(el, others, others_transform):
     closest, min_distance = None, 0
     for other in others:
-        if others_transform:
-            distance = others_transform.OfPoint(other.Location.Point)\
-                                       .DistanceTo(el.Location.Point)
-        else:
-            distance = other.Location.Point.DistanceTo(el.Location.Point)
+        distance = others_transform.OfPoint(other.Location.Point)\
+                                   .DistanceTo(el.Location.Point)
 
         if closest is None or distance < min_distance:
             closest, min_distance = other, distance
@@ -219,108 +216,135 @@ if __name__ == '__main__':
         script_config.config_file = config_file
         script.save_config()
 
-    cnt = 0
-    total = len(selection)
-    failed = set()
+    total = 0
     not_yanked = set(e.unwrap().Id for e in selection.get_elements())
-    with forms.ProgressBar(title='{value} of {max_value}') as pb:
+    with forms.ProgressBar(
+        title='Found {value} pairs',
+        indeterminate=True,
+        cancellable=True
+    ) as pb:
+        mapping_pairs = []
+        for mapping in mappings:
+            if pb.cancelled:
+                break
+
+            link_instance = get_link_instance(mapping['from'].get('model'))
+            if link_instance:
+                link_type = doc.GetElement(link_instance.GetTypeId())
+                phase_map = link_type.GetPhaseMap()
+                from_doc = link_instance.GetLinkDocument()
+            else:
+                link_type = None
+                phase_map = None
+                from_doc = doc
+
+            filters = get_filters(
+                mapping['from'],
+                current_phase=current_phase,
+                phase_map=phase_map
+            )
+            from_elements = rpw.db.Collector(
+                doc=from_doc,
+                of_category=mapping['from']['category'],
+                of_class=FamilyInstance,
+                where=lambda e: all(f(e.unwrap()) for f in filters) \
+                                if filters else True
+            ).get_elements(wrapped=False)
+
+            filters = get_filters(
+                mapping['to'],
+                current_phase=current_phase
+            )
+            to_elements = rpw.db.Collector(
+                elements=selection.get_elements(),
+                of_category=mapping['to']['category'],
+                of_class=FamilyInstance,
+                where=lambda e: all(f(e.unwrap()) for f in filters) \
+                                if filters else True
+            ).get_elements(wrapped=False)
+
+            if link_instance:
+                xfm = link_instance.GetTotalTransform()
+            else:
+                xfm = Tranform.Identity
+
+            if from_elements:
+                for el in to_elements:
+                    _pair = pair(
+                        el=el,
+                        others=from_elements,
+                        others_transform=xfm
+                    )
+                    mapping_pairs.append((mapping, _pair))
+
+                    total += 1
+                    pb.update_progress(
+                        new_value=total
+                    )
+
+    cnt = 0
+    mapped = {}
+    failed = {}
+    with forms.ProgressBar(
+        title='Yanked {value} of {max_value} pairs',
+        cancellable=True
+    ) as pb:
         with rpw.db.Transaction('Yank parameters'):
-            for mapping in mappings:
-                link_instance = get_link_instance(mapping['from'].get('model'))
-                if link_instance:
-                    link_type = doc.GetElement(link_instance.GetTypeId())
-                    from_doc = link_instance.GetLinkDocument()
+            for mapping, _pair in mapping_pairs:
+                if pb.cancelled:
+                    break
+
+                try:
+                    if mapped.get(el.Id):
+                        mapping['to']['parameters'] = [
+                            p for p in mapping['to']['parameters']
+                            if p not in mapped[el.Id]
+                        ]
+
+                    yank(_pair, mapping)
+                except:
+                    if not failed.get(el.Id):
+                        failed[el.Id] = set(mapping['to']['parameters'])
+                    else:
+                        failed[el.Id] += set(mapping['to']['parameters'])
                 else:
-                    link_type = None
-                    from_doc = doc
-
-                # Gather 'from' elements
-                filters = get_filters(
-                    mapping['from'],
-                    current_phase=current_phase,
-                    link_type=link_type
-                )
-                from_elements = rpw.db.Collector(
-                    doc=from_doc,
-                    of_category=mapping['from']['category'],
-                    of_class=FamilyInstance,
-                    where=lambda e: all(f(e.unwrap()) for f in filters) \
-                                    if filters else True
-                ).get_elements(wrapped=False)
-
-                # Gather 'to' elements
-                filters = get_filters(
-                    mapping['to'],
-                    current_phase=current_phase,
-                    link_type=link_type
-                )
-                to_elements = rpw.db.Collector(
-                    elements=selection.get_elements(),
-                    of_category=mapping['to']['category'],
-                    of_class=FamilyInstance,
-                    where=lambda e: all(f(e.unwrap()) for f in filters) \
-                                    if filters else True
-                ).get_elements(wrapped=False)
-
-                # Remove from not_yanked
-                for e in to_elements:
-                    not_yanked.discard(e.Id)
-
-                if not from_elements or not to_elements:
-                    failed.update(to_elements)
-                    cnt += len(to_elements)
+                    if failed.get(el.Id):
+                        failed[el.Id] -= set(mapping['to']['parameters'])
+                        if not failed[el.Id]:
+                            del failed[el.Id]
+                finally:
+                    not_yanked.discard(el.Id)
+                    cnt += 1
                     pb.update_progress(
                         new_value=cnt,
                         max_value=total
                     )
-                    continue
-
-                xfm = link_instance.GetTotalTransform() if link_instance else None
-                pairs = (
-                    pair(
-                        el=e,
-                        others=from_elements,
-                        others_transform=xfm
-                    ) for e in to_elements
-                )
-                for _pair in pairs:
-                    try:
-                        yank(_pair, mapping)
-                    except:
-                        failed.update(to_elements)
-                        cnt += len(to_elements)
-                        pb.update_progress(
-                            new_value=cnt,
-                            max_value=total
-                        )
-                        continue
-
-                cnt += len(to_elements)
-                pb.update_progress(
-                    new_value=cnt,
-                    max_value=total
-                )
 
     if failed or not_yanked:
+        num_failed_params = 0
+        for el, params in failed.items():
+            num_failed_params += len(params)
+
         failed_msg = (
-            'Failed to yank parameters from nearest for {} selected element{}.'
-        ).format(len(failed), 's' if len(failed) > 1 else '')
+            'Failed to yank {} parameters from nearest. '
+            '{} elements were left selected.'
+        ).format(num_failed_params, len(failed))
 
         not_yanked_msg = (
             'No viable yank found for {} selected element{}.'
-        ).format(len(not_yanked), 's' if len(failed) > 1 else '')
+        ).format(len(not_yanked), 's' if len(not_yanked) > 1 else '')
 
         total_msg = (
             'Total selected: {}'.format(len(failed) + len(not_yanked))
         )
 
-        msg = (failed_msg if failed else '') + '\n\n' + \
-              (not_yanked_msg if not_yanked else '') + '\n\n' + \
+        msg = (failed_msg + '\n\n' if failed else '') + \
+              (not_yanked_msg + '\n\n' if not_yanked else '') + \
               (total_msg if failed or not_yanked else '')
         forms.alert(
             title='Error',
             msg=msg
         )
         selection.clear()
-        selection.add(failed)
+        selection.add(failed.keys())
         selection.add(not_yanked)
