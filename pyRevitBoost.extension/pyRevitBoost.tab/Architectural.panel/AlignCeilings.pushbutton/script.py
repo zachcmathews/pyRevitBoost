@@ -3,6 +3,7 @@
 # https://forums.autodesk.com/t5/revit-api-forum/use-of-align-function-programatically-to-change-the-alignment-of/td-p/6008184
 import sys
 from System.Collections.Generic import List
+from collections import OrderedDict
 
 from Autodesk.Revit.DB import ElementId
 
@@ -10,7 +11,8 @@ from pyrevit import forms
 import rpw
 
 from gather import (find_hosted_fixtures, get_ceilings,
-                    get_ceiling_representation, get_fixture_edges, get_fixtures_of_category, get_links)
+                    get_ceiling_representation, get_fixture_edges,
+                    get_fixtures_of_category, get_links)
 from align import (align_ceiling_representation_with_gridlines,
                    align_grid_with_edges)
 
@@ -40,16 +42,25 @@ if not ceilings:
     )
     sys.exit()
 
+class DocumentOption(forms.TemplateListItem):
+    @property
+    def name(self):
+        return self.item.Title
+
 links = get_links(doc)
-docs = [link.GetLinkDocument() for link in links] + [doc]
-selected_doc = forms.SelectFromList.show(
-    context=sorted([d.Title for d in docs]),
+docs = [DocumentOption(doc)]
+for link in links:
+    link_doc = link.GetLinkDocument()
+    if link_doc:
+        docs.append(DocumentOption(link_doc))
+
+fixtures_doc = forms.SelectFromList.show(
+    context=docs,
     title='Select model',
     width=400,
     height=400,
     multiselect=False
 )
-[fixtures_doc] = [d for d in docs if d.Title == selected_doc]
 
 categories = fixtures_doc.Settings.Categories
 selected_category = forms.SelectFromList.show(
