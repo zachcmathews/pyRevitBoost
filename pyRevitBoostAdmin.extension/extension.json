@@ -1,0 +1,14 @@
+{
+    "builtin": "False",
+    "default_enabled": "False",
+    "type": "extension",
+    "rocket_mode_compatible": "True",
+    "name": "pyRevitBoostAdmin",
+    "description": "SysAdmin/BIM coordinator tools",
+    "author": "Zachary Mathews",
+    "author_profile": "https://github.com/zachcmathews",
+    "url": "https://github.com/zachcmathews/pyRevitBoost.git",
+    "website": "https://github.com/zachcmathews/pyRevitBoost",
+    "image": "",
+    "dependencies": []
+}

@@ -5,7 +5,7 @@ import codecs
 import shutil
 from collections import OrderedDict
 
-from Autodesk.Revit.DB import StorageType
+from Autodesk.Revit.DB import ParameterType, StorageType
 
 import rpw
 from pyrevit import forms
@@ -60,12 +60,14 @@ def extract_parameters(family_doc):
             formula, value = '', ''
             if p.IsDeterminedByFormula:
                 formula = p.Formula
-                isString = formula.startswith(r'"') and formula.endswith(r'"')
+                isString = formula.startswith('"') and formula.endswith('"')
                 if isString:
-                    formula = '<text>' + formula + '</text>'
+                    formula = '<text>' + formula.strip('"') + '</text>'
             else:
                 if p.StorageType == StorageType.Integer:
                     value = t.AsInteger(p)
+                    if p.Definition.ParameterType == ParameterType.YesNo:
+                        value = 'Yes' if value == 1 else 'No'
                 elif p.StorageType == StorageType.Double:
                     value = t.AsDouble(p)
                 elif p.StorageType == StorageType.String:
@@ -144,18 +146,22 @@ if __name__ == '__main__':
     paths = get_family_paths(directory, skip=skip_directories)
 
     tsv = forms.save_file(file_ext='tsv', restore_dir=True)
+    if not tsv:
+        sys.exit()
     with codecs.open(tsv, 'w', encoding='utf8') as f:
         f.write('')
 
     cnt = 0
     total = len(paths)
-    failed = []
     with forms.ProgressBar(
         title='{value} of {max_value}',
         cancellable=True
     ) as pb:
         max_num_parameters = 0
         for path in paths:
+            if pb.cancelled:
+                break
+
             try:
                 doc = app.OpenDocumentFile(path)
             except:
@@ -183,17 +189,9 @@ if __name__ == '__main__':
                         f.write(line + '\n')
 
                 doc.Close(False)
-
-            cnt += 1
-            pb.update_progress(cnt, total)
-            if pb.cancelled:
-                break
+            finally:
+                cnt += 1
+                pb.update_progress(cnt, total)
 
         create_header(tsv, num_parameters=max_num_parameters)
         shutil.copyfile(tsv, tsv+'.old')
-
-    if failed:
-        forms.alert(
-            title='Error: Family could not be loaded',
-            msg='\n'.join(failed)
-        )

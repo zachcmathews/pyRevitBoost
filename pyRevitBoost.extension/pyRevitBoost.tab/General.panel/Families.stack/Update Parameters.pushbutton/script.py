@@ -26,7 +26,9 @@ def diff_tsv(old, new):
     with codecs.open(old, 'r', encoding='utf8') as f:
         f.readline()    # don't care about header
         for line in f.readlines():
-            line = line.rstrip('\t\n')
+            line = line.rstrip('\t\r\n')\
+                       .replace('TRUE', 'True')\
+                       .replace('FALSE', 'False')
             if line:
                 old_lines.append(line)
 
@@ -37,11 +39,25 @@ def diff_tsv(old, new):
             line = line.rstrip('\t\r\n')\
                        .replace('TRUE', 'True')\
                        .replace('FALSE', 'False')
-
             if line and line not in old_lines:
                 updated_lines.append(line)
 
-    return (old_lines, updated_lines)
+    return old_lines, updated_lines
+
+
+def update_old_tsv(tsv, families):
+    max_num_parameters = 0
+    with codecs.open(tsv, 'w', encoding='utf8') as f:
+        for path, family in families.items():
+            for type in family:
+                line = format_dict_as_tsv(type)
+                f.write(line + '\n')
+
+                num_parameters = len(type['parameters'])
+                if num_parameters > max_num_parameters:
+                    max_num_parameters = num_parameters
+
+    create_header(tsv=tsv, num_parameters=max_num_parameters)
 
 
 def create_header(tsv, num_parameters):
@@ -62,26 +78,6 @@ def create_header(tsv, num_parameters):
 
         # Write data back
         f.write(''.join(lines))
-
-
-def update_old_tsv(tsv, families):
-    max_num_parameters = 0
-    with codecs.open(tsv, 'w', encoding='utf8') as f:
-        for path, family in families.items():
-            for type in family:
-                line = format_dict_as_tsv(OrderedDict([
-                    ('path', type['path']),
-                    ('category', type['category']),
-                    ('family', type['family']),
-                    ('type', type['type']),
-                    ('parameters', type['parameters']),
-                ]))
-                f.write(line + '\n')
-
-                if len(type['parameters']) > max_num_parameters:
-                    max_num_parameters = len(type['parameters'])
-
-    create_header(tsv, num_parameters=max_num_parameters)
 
 
 def format_dict_as_tsv(d):
@@ -127,13 +123,7 @@ def parse_line(line):
         param = OrderedDict()
         for j, col_name in enumerate(parameter_cols):
             if i+j < len(values):
-                # Formulas evaluating to text have to be wrapped,
-                # otherwise Google Sheets strips quotes
                 value = values[i+j]
-                if col_name == 'formula':
-                    if value.startswith('<text>') and value.endswith('</text>'):
-                        value = value.lstrip('<text>').rstrip('</text>')
-
                 param[col_name] = value
             else:
                 param[col_name] = ''
@@ -258,6 +248,8 @@ def update_value(family_manager, family_type, p, value, units):
     Updating values is very slow (0.15s/update). Do as few as possible.
     '''
     if p.StorageType == StorageType.Integer:
+        if p.Definition.ParameterType == ParameterType.YesNo:
+            value = 1 if value == 'Yes' else 0
         if int(value) != family_type.AsInteger(p):
             family_manager.Set(p, int(value))
 
@@ -286,6 +278,9 @@ def update_value(family_manager, family_type, p, value, units):
 
 
 def update_formula(family_manager, p, formula):
+    # GSheets strips surrounding quotes, so we wrap in <text> tags
+    formula = formula.replace('<text>', '"').replace('</text>', '"')
+
     if formula != p.Formula:
         family_manager.SetFormula(p, formula)
 
@@ -323,13 +318,12 @@ if __name__ == '__main__':
     if not os.path.exists(old):
         forms.alert(
             title='No old file found',
-            msg='An existing parameters file is required to use this command, '
-                'otherwise compute time will be very long.\n\n'
+            msg='An existing parameters file is required to use this command. '
                 'Generate one using the extract parameters command.',
             exitscript=True
         )
 
-    (old_lines, updated_lines) = diff_tsv(old=old, new=new)
+    old_lines, updated_lines = diff_tsv(old=old, new=new)
     if not updated_lines:
         forms.alert(
             title='No updates found',
@@ -344,47 +338,50 @@ if __name__ == '__main__':
     selected_updates = forms.SelectFromList.show(
         title='Apply updates',
         context=updated_families.keys(),
-        multiselect=True
+        multiselect=True,
+        width=800
     )
     if not selected_updates:
         sys.exit()
 
     cnt = 0
     total = len(updated_families)
-    failed = []
     with forms.ProgressBar(
         title='{value} of {max_value}',
         cancellable=True
     ) as pb:
-        for path in existing_families.keys():
-            if path not in selected_updates:
-                continue
-
-            doc = app.OpenDocumentFile(path)
-            family_manager = doc.FamilyManager
-
-            with rpw.db.Transaction('Update family', doc=doc):
-                family_types = updated_families[path]
-                for type in family_types:
-                    activate_family_type(family_manager, name=type['type'])
-                    update_parameters(
-                        family_manager=family_manager,
-                        parameters=type['parameters'],
-                        units=doc.GetUnits()
-                    )
-
-            doc.Close(True)
-
-            existing_families[path] = updated_families[path]
-            cnt += 1
-            pb.update_progress(cnt, total)
+        for path in selected_updates:
             if pb.cancelled:
                 break
 
-    update_old_tsv(old, existing_families)
+            try:
+                doc = app.OpenDocumentFile(path)
+            except:
+                print("The following family is corrupt: " + path)
+            else:
+                family_manager = doc.FamilyManager
 
-    if failed:
-        forms.alert(
-            title='Error: Family could not be loaded',
-            msg='\n'.join(failed)
-        )
+                with rpw.db.Transaction('Update family', doc=doc):
+                    family_types = updated_families[path]
+                    for type in family_types:
+                        activate_family_type(family_manager, name=type['type'])
+                        update_parameters(
+                            family_manager=family_manager,
+                            parameters=type['parameters'],
+                            units=doc.GetUnits()
+                        )
+
+                        # Update old tsv entry or add new entry
+                        for i in range(len(existing_families[path])):
+                            if existing_families[path][i]['type'] == type['type']:
+                                existing_families[path][i] = type
+                                break
+                        else:
+                            existing_families[path].append(type)
+
+                doc.Close(True)
+            finally:
+                cnt += 1
+                pb.update_progress(cnt, total)
+
+        update_old_tsv(tsv=old, families=existing_families)
