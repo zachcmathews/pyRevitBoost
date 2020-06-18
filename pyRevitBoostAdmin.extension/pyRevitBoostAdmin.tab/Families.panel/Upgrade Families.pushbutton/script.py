@@ -53,16 +53,17 @@ if __name__ == '__main__':
         cancellable=True
     ) as pb:
         for path in paths:
+            if pb.cancelled:
+                break
+
             try:
                 doc = app.OpenDocumentFile(path)
                 doc.Close(True)
             except:
                 print("The following family is corrupt: " + path)
-
-            cnt += 1
-            pb.update_progress(cnt, total)
-            if pb.cancelled:
-                break
+            finally:
+                cnt += 1
+                pb.update_progress(cnt, total)
 
     should_remove_previous_revisions = forms.alert(
         title='Remove previous versions?',
