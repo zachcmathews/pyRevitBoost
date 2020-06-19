@@ -27,6 +27,10 @@ def parse_config(block_name, config, doc):
     # Parse config
     from gather import find_family_type
     host = parse_host(mapping.get('host'), doc.GetUnits())
+    if mapping.get('backup-host'):
+        backup_host = parse_host(mapping.get('backup-host'), doc.GetUnits())
+    else:
+        backup_host = None
     family_type = find_family_type(
         category=mapping.get('category'),
         family=mapping.get('family'),
@@ -49,6 +53,7 @@ def parse_config(block_name, config, doc):
     map = {
         'family_type': family_type,
         'host': host,
+        'backup_host': backup_host,
         'origin_offset': origin_offset,
         'rotate_center_offset': rotate_center_offset,
         'orientation_offset': orientation_offset,
