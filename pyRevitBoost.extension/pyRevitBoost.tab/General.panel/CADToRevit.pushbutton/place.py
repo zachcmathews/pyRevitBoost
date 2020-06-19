@@ -10,19 +10,20 @@ from gather import (find_nearest_ceiling_face, find_nearest_wall_face,
 
 
 def map_block_to_family_instance(
-    family_type, host, origin_offset, orientation_offset,
+    family_type, host, backup_host,
+    origin_offset, orientation_offset,
     parameters, block, transform, doc, view, level
 ):
-    transform = transform.Multiply(block.Transform)
+    block_transform = transform.Multiply(block.Transform)
 
-    block_direction = transform.OfVector(XYZ.BasisX)
+    block_direction = block_transform.OfVector(XYZ.BasisX)
     block_orientation = XYZ.BasisX.AngleTo(block_direction)
     block_rotation = Transform.CreateRotation(
         XYZ.BasisZ,
         block_orientation
     )
 
-    block_location = transform.OfPoint(XYZ.Zero)
+    block_location = block_transform.OfPoint(XYZ.Zero)
     origin_offset = block_rotation.OfVector(origin_offset)
     location = block_location + origin_offset
 
@@ -36,6 +37,13 @@ def map_block_to_family_instance(
                 level,
                 doc
             )
+        elif backup_host:
+            map_block_to_family_instance(
+                family_type, backup_host, None,
+                origin_offset, orientation_offset,
+                parameters, block, transform, doc, view, level
+            )
+            return
         else:
             raise TypeError
     elif host['type'] == 'Reference Plane':
@@ -65,6 +73,13 @@ def map_block_to_family_instance(
                 level,
                 doc
             )
+        elif backup_host:
+            map_block_to_family_instance(
+                family_type, backup_host, None,
+                origin_offset, orientation_offset,
+                parameters, block, transform, doc, view, level
+            )
+            return
         else:
             raise TypeError
     elif host['type'] == 'Wall and Level':
@@ -79,6 +94,13 @@ def map_block_to_family_instance(
                 level,
                 doc
             )
+        elif backup_host:
+            map_block_to_family_instance(
+                family_type, backup_host, None,
+                origin_offset, orientation_offset,
+                parameters, block, transform, doc, view, level
+            )
+            return
         else:
             raise TypeError
 

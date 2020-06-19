@@ -127,6 +127,7 @@ with forms.ProgressBar(title='{value} of {max_value}', step=20) as pb:
                     map_block_to_family_instance(
                         family_type=mapping['family_type'],
                         host=mapping['host'],
+                        backup_host=mapping['backup_host'],
                         origin_offset=mapping['origin_offset'],
                         orientation_offset=mapping['orientation_offset'],
                         parameters=mapping['parameters'],
