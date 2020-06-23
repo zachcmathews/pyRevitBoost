@@ -7,7 +7,7 @@ from Autodesk.Revit.Exceptions import ArgumentException
 
 import rpw
 from pyrevit import forms, script
-from boostutils import get_parameter, load_as_python, load_tsv
+from boostutils import get_parameter, load_tsv
 
 from parse import parse_config
 from place import map_block_to_family_instance
@@ -27,8 +27,6 @@ offsets in config.yaml.
 __title__ = u'CAD\U00002b62Revit'
 __author__ = 'Zachary Mathews'
 __cleanengine__ = True
-
-start_time = time.time()
 
 doc = rpw.revit.doc
 uidoc = rpw.revit.uidoc
@@ -52,23 +50,33 @@ if hasattr(script_config, 'config_file'):
 if not reuse_config:
     with forms.WarningBar(title='Please select a configuration file'):
         config_file = forms.pick_file(
-            files_filter='YAML Configuration File (*.yaml)|*.yaml|'
-                         'Tab-separated Values File (*.tsv)|*.tsv',
+            files_filter='Tab-separated Values File (*.tsv)|*.tsv',
             restore_dir=True
         )
 if not config_file:
     sys.exit()
 
-if config_file.endswith('.yaml'):
-    config = load_as_python(config_file)
-elif config_file.endswith('.tsv'):
-    config = load_tsv(
-        config_file,
-        use_headers=['block', 'category', 'family', 'type', 'host'],
-        skip_first=True
-    )
+config = []
+lines = load_tsv(config_file)
+headers = lines[0]
+parameter_headers = ['Parameter', 'Value']
+for line in lines[1:]:
+    d = {}
 
-if config is not None:
+    for i, v in enumerate(line):
+        if headers[i] in parameter_headers:
+            break
+
+        d[headers[i].lower()] = v
+
+    params = {}
+    for j in range(i, len(line)-1, len(parameter_headers)):
+        params[line[j]] = line[j+1]
+
+    d['parameters'] = params
+    config.append(d)
+
+if config:
     script_config.config_file = config_file
     script.save_config()
 
@@ -102,31 +110,53 @@ import_transform = cad_import.GetTotalTransform()
 blocks = get_blocks(cad_import)
 blocks_grouped_by_name = group_blocks_by_name(blocks)
 
+# Filter blocks by user selection
+selected_blocks = forms.SelectFromList.show(
+    title='Select blocks to map to Revit families',
+    context=sorted(blocks_grouped_by_name.keys()),
+    multiselect=True
+)
+if not selected_blocks:
+    sys.exit()
+blocks_grouped_by_name = dict([
+    (block_name, group) for block_name, group in blocks_grouped_by_name.items()
+    if block_name in selected_blocks
+])
+
+start_time = time.time()
+
 cnt = 0
-total = len(blocks)
+total = sum(map(len, blocks_grouped_by_name.values()))
 no_mapping = {}
 failed = []
-with forms.ProgressBar(title='{value} of {max_value}', step=20) as pb:
+with forms.ProgressBar(
+    title='{value} of {max_value}',
+    step=20,
+    cancellable=True
+) as pb:
     with rpw.db.Transaction('CAD -> Revit') as t:
         for block_name, blocks in blocks_grouped_by_name.items():
+            if pb.cancelled:
+                break
+
             if not config:
                 no_mapping[block_name] = blocks
                 cnt += len(blocks)
                 pb.update_progress(cnt, total)
                 continue
 
-            mapping = parse_config(block_name, config, doc)
-            if not mapping:
+            try:
+                mapping = parse_config(block_name, config, doc)
+            except ValueError:
                 no_mapping[block_name] = blocks
                 cnt += len(blocks)
                 pb.update_progress(cnt, total)
-                continue
-
-            for block in blocks:
-                try:
+            else:
+                for block in blocks:
                     map_block_to_family_instance(
                         family_type=mapping['family_type'],
                         host=mapping['host'],
+                        backup_host=mapping['backup_host'],
                         origin_offset=mapping['origin_offset'],
                         orientation_offset=mapping['orientation_offset'],
                         parameters=mapping['parameters'],
@@ -136,9 +166,6 @@ with forms.ProgressBar(title='{value} of {max_value}', step=20) as pb:
                         view=view,
                         level=level,
                     )
-                except (TypeError, ArgumentException):
-                    failed.append(block)
-                finally:
                     cnt += 1
                     pb.update_progress(cnt, total)
 
@@ -149,17 +176,18 @@ config_warning = (
     '\n'.join([
        '{} : {} blocks'.format(name, len(blocks))
        for (name, blocks) in sorted(no_mapping.items())
-    ])
+    ]) +
+    '\n\n'
 )
 results = (
     'Processed {0} elements in {1:4} seconds.\n'
-    .format(total, time.time()-start_time) +
+    .format(cnt, time.time()-start_time) +
     'Successfully placed {} elements.\n'
-    .format(total-no_mapping_count-len(failed)) +
+    .format(cnt-no_mapping_count-len(failed)) +
     'Failed to place {} elements.'.format(len(failed))
 )
 forms.alert(
     title='Results',
-    msg='{}\n\n{}'.format(config_warning, results),
+    msg='{}{}'.format(config_warning if no_mapping_count else '', results),
     warn_icon=False
 )

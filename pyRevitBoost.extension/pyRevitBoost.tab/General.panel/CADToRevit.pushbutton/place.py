@@ -1,6 +1,6 @@
 # pylint: disable=import-error
 from Autodesk.Revit.DB import (ElementTransformUtils, Line, Reference,
-                               Transform, XYZ)
+                               StorageType, Transform, XYZ)
 from Autodesk.Revit.DB.Structure import StructuralType
 from Autodesk.Revit.Exceptions import ArgumentException
 
@@ -10,21 +10,23 @@ from gather import (find_nearest_ceiling_face, find_nearest_wall_face,
 
 
 def map_block_to_family_instance(
-    family_type, host, origin_offset, orientation_offset,
-    parameters, block, transform, doc, view, level
+    family_type, host, backup_host,
+    origin_offset, orientation_offset,
+    parameters, block, transform,
+    doc, view, level
 ):
-    transform = transform.Multiply(block.Transform)
+    block_transform = transform.Multiply(block.Transform)
 
-    block_direction = transform.OfVector(XYZ.BasisX)
+    block_direction = block_transform.OfVector(XYZ.BasisX)
     block_orientation = XYZ.BasisX.AngleTo(block_direction)
     block_rotation = Transform.CreateRotation(
         XYZ.BasisZ,
         block_orientation
     )
 
-    block_location = transform.OfPoint(XYZ.Zero)
-    origin_offset = block_rotation.OfVector(origin_offset)
-    location = block_location + origin_offset
+    block_location = block_transform.OfPoint(XYZ.Zero)
+    rotated_origin_offset = block_rotation.OfVector(origin_offset)
+    location = block_location - rotated_origin_offset
 
     # Place family instance
     if host['type'] == 'Ceiling':
@@ -36,6 +38,14 @@ def map_block_to_family_instance(
                 level,
                 doc
             )
+        elif backup_host:
+            map_block_to_family_instance(
+                family_type, backup_host, None,
+                origin_offset, orientation_offset,
+                parameters, block, transform,
+                doc, view, level
+            )
+            return
         else:
             raise TypeError
     elif host['type'] == 'Reference Plane':
@@ -65,6 +75,14 @@ def map_block_to_family_instance(
                 level,
                 doc
             )
+        elif backup_host:
+            map_block_to_family_instance(
+                family_type, backup_host, None,
+                origin_offset, orientation_offset,
+                parameters, block, transform,
+                doc, view, level
+            )
+            return
         else:
             raise TypeError
     elif host['type'] == 'Wall and Level':
@@ -79,6 +97,14 @@ def map_block_to_family_instance(
                 level,
                 doc
             )
+        elif backup_host:
+            map_block_to_family_instance(
+                family_type, backup_host, None,
+                origin_offset, orientation_offset,
+                parameters, block, transform,
+                doc, view, level
+            )
+            return
         else:
             raise TypeError
 
@@ -106,8 +132,7 @@ def map_block_to_family_instance(
     # Set family instance parameters
     set_parameters(
         el=family_instance,
-        parameters=parameters,
-        units=doc.GetUnits()
+        parameters=parameters
     )
 
     return family_instance
@@ -195,25 +220,29 @@ def place_on_wall_and_level(family_type, wall, level, doc):
     return family_instance
 
 
-def set_parameters(el, parameters, units):
-    for p in parameters:
-        set_parameter(el, p, units)
+def set_parameters(el, parameters):
+    for name, v in parameters.items():
+        p = get_parameter(
+            el=el,
+            name=name,
+        )
 
-
-def set_parameter(el, parameter, units):
-    ref = get_parameter(
-        el=el,
-        name=parameter['name'],
-    )
-
-    if parameter['type'] == 'True/False':
-        ref.Set(False) if parameter['value'] == 'False' else ref.Set(True)
-
-    elif parameter['type'] == 'Text':
-        ref.Set(parameter['value'])
-
-    elif parameter['type'] == 'Length':
-        ref.SetValueString(parameter['value'])
-
-    elif parameter['type'] == 'Number':
-        ref.Set(float(parameter['value']))
+        if p.StorageType == StorageType.Integer:
+            if v == 'Yes' or v == 'yes' or v == 'True' or v == 'true':
+                v = 1
+            elif v == 'No' or v == 'no' or v == 'False' or v == 'false':
+                v = 0
+            else:
+                v = int(v)
+            p.Set(v)
+        elif p.StorageType == StorageType.Double:
+            try:
+                v = float(v)
+            except:
+                p.SetValueString(v)
+            else:
+                p.Set(v)
+        elif p.StorageType == StorageType.String:
+            p.Set(v)
+        else:
+            raise TypeError

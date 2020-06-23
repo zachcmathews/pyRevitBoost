@@ -1,14 +1,11 @@
 import sys
 
-from Autodesk.Revit.DB import Document, ElementTransformUtils, Arc, Line, XYZ
-from Autodesk.Revit.UI import TaskDialog
-from Autodesk.Revit import Exceptions
+from Autodesk.Revit.DB import ElementTransformUtils, Line, XYZ
 
-from pyrevit import script, forms
+from pyrevit import forms
 import rpw
 
 __doc__ = "Rotate multiple elements about their origins."
-__title__ = "Rotate\nMultiple"
 __author__ = "Zachary Mathews"
 __context__ = "Selection"
 
