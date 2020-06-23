@@ -18,17 +18,13 @@ class _cad_import():
 
 def find_family_type(category, family, family_type):
     family_types = get_family_types()
-    try:
-        [typeToPlace] = [
-            t for t in family_types
-            if t.Category.Name == category
-            and t.FamilyName == family
-            and get_name(t) == family_type
-        ]
-    except ValueError:
-        return None
-    else:
-        return typeToPlace
+    [typeToPlace] = [
+        t for t in family_types
+        if t.Category.Name == category
+        and t.FamilyName == family
+        and get_name(t) == family_type
+    ]
+    return typeToPlace
 
 
 def find_nearest_ceiling_face(location, tolerance=1e-9):
