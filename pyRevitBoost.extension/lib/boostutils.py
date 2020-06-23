@@ -4,6 +4,7 @@ clr.AddReference('System.Core')
 from System.Dynamic import ExpandoObject
 
 import math
+import codecs
 import inspect
 
 from Autodesk.Revit.DB import (BuiltInParameter, Domain, Ellipse, Line,
@@ -214,28 +215,17 @@ def load_as_python(yaml_file, convert_booleans=False):
     ) if yamldotnet else None
 
 
-def load_tsv(file, use_headers, skip_first=False):
+def load_tsv(tsv):
     out = []
     error_codes = [
         '#VALUE!', '#NAME?', '#DIV/0!', '#REF!',
         '#NULL!', '#N/A', '#NUM!'
     ]
-    with open(file, 'r') as f:
-        if skip_first:
-            f.readline()
-
-        if type(use_headers) is list:
-            headers = use_headers
-        else:
-            headers = f.readline().rstrip('\n').split('\t')
-
+    with codecs.open(tsv, 'r', encoding='utf8') as f:
         for line in f.readlines():
-            dict = {}
-            for header, val in zip(headers, line.rstrip('\n').split('\t')):
-                dict[header] = val
-
-            if not any(v in error_codes for v in dict.values()):
-                out.append(dict)
+            values = line.rstrip('\t\r\n').split('\t')
+            if not any(v in error_codes for v in values):
+                out.append(values)
 
     return out
 
