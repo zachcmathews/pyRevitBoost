@@ -1,3 +1,4 @@
+# pylint: disable=import-error
 import sys
 import os
 import re
@@ -6,6 +7,8 @@ import shutil
 from collections import OrderedDict
 
 from Autodesk.Revit.DB import ParameterType, StorageType
+from Autodesk.Revit.Exceptions import (CorruptModelException,
+                                       FileAccessException)
 
 import rpw
 from pyrevit import forms
@@ -94,7 +97,7 @@ def extract_parameters(family_doc):
 
 def get_family_paths(directory, skip=[]):
     family_paths = set()
-    for root, subdirs, files in os.walk(directory):
+    for root, _, files in os.walk(directory):
         if not any(d in root for d in skip):
             for file in files:
                 isFamilyDoc = file.endswith('.rfa')
@@ -119,9 +122,9 @@ def format_dict_as_tsv(d):
     return '\t'.join(tsv)
 
 
-def format_list_as_tsv(l):
+def format_list_as_tsv(_list):
     tsv = []
-    for i in l:
+    for i in _list:
         if isinstance(i, dict) or isinstance(i, OrderedDict):
             tsv.append(format_dict_as_tsv(i))
         else:
@@ -164,7 +167,7 @@ if __name__ == '__main__':
 
             try:
                 doc = app.OpenDocumentFile(path)
-            except:
+            except (CorruptModelException, FileAccessException):
                 print("The following family is corrupt: " + path)
             else:
                 category = extract_category(doc)
