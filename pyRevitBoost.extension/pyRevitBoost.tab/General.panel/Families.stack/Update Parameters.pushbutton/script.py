@@ -1,11 +1,13 @@
+# pylint: disable=import-error
 import sys
 import os
-import math
 import codecs
 from collections import OrderedDict
 
 from Autodesk.Revit.DB import (BuiltInParameterGroup, ParameterType,
                                StorageType, UnitFormatUtils)
+from Autodesk.Revit.Exceptions import (CorruptModelException,
+                                       FileAccessException)
 
 import rpw
 from pyrevit import forms
@@ -48,7 +50,7 @@ def diff_tsv(old, new):
 def update_old_tsv(tsv, families):
     max_num_parameters = 0
     with codecs.open(tsv, 'w', encoding='utf8') as f:
-        for path, family in families.items():
+        for _, family in families.items():
             for type in family:
                 line = format_dict_as_tsv(type)
                 f.write(line + '\n')
@@ -93,9 +95,9 @@ def format_dict_as_tsv(d):
     return '\t'.join(tsv)
 
 
-def format_list_as_tsv(l):
+def format_list_as_tsv(_list):
     tsv = []
-    for i in l:
+    for i in _list:
         if isinstance(i, dict) or isinstance(i, OrderedDict):
             tsv.append(format_dict_as_tsv(i))
         else:
@@ -110,16 +112,15 @@ def parse_line(line):
         ('path', values[0]),
         ('category', values[1]),
         ('family', values[2]),
-        ('type', values[3] if len(values) > 3 else ' '),    # Gsheets strips spaces
+        ('type', values[3] if len(values) > 3 else ' '),
         ('parameters', [])
     ])
 
     parameter_cols = [
-        'name', 'type', 'group', 'shared', 'instance',
-        'reporting', 'value', 'formula'
+        'name', 'type', 'group', 'shared',
+        'instance', 'reporting', 'value', 'formula'
     ]
-    num_parameters = math.ceil(float(len(values)-4)/len(parameter_cols))
-    for i in range(4, 4 + int(num_parameters*len(parameter_cols)), len(parameter_cols)):
+    for i in range(4, len(values), len(parameter_cols)):
         param = OrderedDict()
         for j, col_name in enumerate(parameter_cols):
             if i+j < len(values):
@@ -205,7 +206,14 @@ def update_parameters(family_manager, parameters, units):
         formula = param['formula']
 
         if name not in family_params.keys():
-            p = create_parameter(family_manager, name, group, _type, isShared, isInstance)
+            p = create_parameter(
+                family_manager,
+                name,
+                group,
+                _type,
+                isShared,
+                isInstance
+            )
         else:
             p = family_params[name]
 
@@ -214,7 +222,13 @@ def update_parameters(family_manager, parameters, units):
         if formula:
             update_formula(family_manager, p, formula)
         elif value:
-            update_value(family_manager, family_manager.CurrentType, p, value, units)
+            update_value(
+                family_manager,
+                family_manager.CurrentType,
+                p,
+                value,
+                units
+            )
 
         sorted_params[name] = p
 
@@ -331,13 +345,13 @@ if __name__ == '__main__':
             exitscript=True
         )
 
-    parsed_old_lines = [parse_line(l) for l in old_lines]
-    existing_families = group_by_path(parsed_old_lines)
-    parsed_updated_lines = [parse_line(l) for l in updated_lines]
-    updated_families = group_by_path(parsed_updated_lines)
+    parsed_old_lines = [parse_line(line) for line in old_lines]
+    existing_fams = group_by_path(parsed_old_lines)
+    parsed_updated_lines = [parse_line(line) for line in updated_lines]
+    updated_fams = group_by_path(parsed_updated_lines)
     selected_updates = forms.SelectFromList.show(
         title='Apply updates',
-        context=updated_families.keys(),
+        context=updated_fams.keys(),
         multiselect=True,
         width=800
     )
@@ -345,7 +359,7 @@ if __name__ == '__main__':
         sys.exit()
 
     cnt = 0
-    total = len(updated_families)
+    total = len(updated_fams)
     with forms.ProgressBar(
         title='{value} of {max_value}',
         cancellable=True
@@ -356,13 +370,13 @@ if __name__ == '__main__':
 
             try:
                 doc = app.OpenDocumentFile(path)
-            except:
+            except (CorruptModelException, FileAccessException):
                 print("The following family is corrupt: " + path)
             else:
                 family_manager = doc.FamilyManager
 
                 with rpw.db.Transaction('Update family', doc=doc):
-                    family_types = updated_families[path]
+                    family_types = updated_fams[path]
                     for type in family_types:
                         activate_family_type(family_manager, name=type['type'])
                         update_parameters(
@@ -372,16 +386,16 @@ if __name__ == '__main__':
                         )
 
                         # Update old tsv entry or add new entry
-                        for i in range(len(existing_families[path])):
-                            if existing_families[path][i]['type'] == type['type']:
-                                existing_families[path][i] = type
+                        for i in range(len(existing_fams[path])):
+                            if existing_fams[path][i]['type'] == type['type']:
+                                existing_fams[path][i] = type
                                 break
                         else:
-                            existing_families[path].append(type)
+                            existing_fams[path].append(type)
 
                 doc.Close(True)
             finally:
                 cnt += 1
                 pb.update_progress(cnt, total)
 
-        update_old_tsv(tsv=old, families=existing_families)
+        update_old_tsv(tsv=old, families=existing_fams)
