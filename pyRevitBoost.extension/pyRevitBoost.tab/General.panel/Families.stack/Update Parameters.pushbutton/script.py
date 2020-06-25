@@ -323,7 +323,7 @@ def reorder_parameters(family_manager, sorted_params):
     family_manager.ReorderParameters(ordered_params)
 
 
-if __name__ == '__main__':
+if __name__ == '__main__':  # noqa: C901
     new = forms.pick_file(file_ext='tsv', restore_dir=True)
     if not new:
         sys.exit()

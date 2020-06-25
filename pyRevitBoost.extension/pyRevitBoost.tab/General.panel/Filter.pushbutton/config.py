@@ -198,6 +198,49 @@ def _get_element_meta(e, workset_table):
         }
 
 
+def _get_element_dict(e, meta):
+    from Autodesk.Revit.DB import ParameterType, StorageType
+    element = {}
+    for p in e.Parameters:
+        if p.StorageType == StorageType.String:
+            if p.HasValue:
+                _str = p.AsString()
+                _value_str = p.AsValueString()
+                element[p.Definition.Name] = (
+                    _str if _str is not None else _value_str
+                )
+            else:
+                element[p.Definition.Name] = 'None'
+
+        elif p.StorageType == StorageType.Integer:
+            if p.HasValue:
+                if p.Definition.ParameterType == ParameterType.YesNo:
+                    element[p.Definition.Name] = (
+                        'Yes' if p.AsInteger() == 1 else 'No'
+                    )
+                else:
+                    element[p.Definition.Name] = p.AsValueString()
+            else:
+                element[p.Definition.Name] = 'None'
+
+        elif p.StorageType == StorageType.Double:
+            if p.HasValue:
+                element[p.Definition.Name] = p.AsValueString()
+            else:
+                element[p.Definition.Name] = 'None'
+
+    element.update(meta)
+    return element
+
+
+def _get_filterable_parameters(elements):
+    parameters = set()
+    for e in elements:
+        parameters.update(e.keys())
+
+    return parameters
+
+
 if __name__ == '__main__':
     from functools import partial
     import rpw
@@ -210,12 +253,21 @@ if __name__ == '__main__':
     )
 
     elements = [
-        _get_element_meta(e)
+        _get_element_dict(e, meta=_get_element_meta(e))
         for e in selection.get_elements(wrapped=False)
         if _get_element_meta(e)
     ]
 
-    parameters = ['Category', 'Family', 'Type', 'Workset']
+    parameters = _get_filterable_parameters(elements)
+    parameters = forms.SelectFromList.show(
+        title='Select filter criteria',
+        context=sorted(parameters),
+        multiselect=True
+    )
+    if not parameters:
+        import sys
+        sys.exit()
+
     criteria = []
     for p in parameters:
         option_values = sorted(set(e.get(p, 'None') for e in elements))
