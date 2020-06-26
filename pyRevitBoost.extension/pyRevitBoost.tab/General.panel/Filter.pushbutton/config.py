@@ -131,7 +131,7 @@ class FilterForm(forms.WPFWindow):
         self.tabs = []
         for criterion in self._filter.criteria:
             tab = FilterFormTab(
-                title=criterion.name.capitalize(),
+                title=criterion.name,
                 criterion=criterion
             )
             self.tabs.append(tab)
