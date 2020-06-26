@@ -13,9 +13,7 @@ import rpw
 from pyrevit import forms
 from boostutils import memoize
 
-__doc__ = '''\
-Update parameters for all families in a directory.
-'''
+__doc__ = 'Update parameters for all families in a directory.'
 __author__ = 'Zachary Mathews'
 __context__ = 'zerodoc'
 
@@ -24,23 +22,36 @@ app = uiapp.Application
 
 
 def diff_tsv(old, new):
+    def _preprocess(line):
+        line = line.rstrip('\t\r\n')\
+                   .replace('TRUE', 'True')\
+                   .replace('FALSE', 'False')
+
+        line_cols = line.split('\t')
+        for i, _ in enumerate(line_cols):
+            if (
+                line_cols[i].startswith('"')
+                and line_cols[i].endswith('"')
+            ):
+                line_cols[i] = line_cols[i][1:-1]
+                line_cols[i] = line_cols[i].replace('""', '"')
+
+        line = '\t'.join(line_cols)
+        return line
+
     old_lines = []
-    with codecs.open(old, 'r', encoding='utf8') as f:
-        f.readline()    # don't care about header
+    with codecs.open(old, 'r', encoding='utf_16_le') as f:
+        f.readline()
         for line in f.readlines():
-            line = line.rstrip('\t\r\n')\
-                       .replace('TRUE', 'True')\
-                       .replace('FALSE', 'False')
+            line = _preprocess(line)
             if line:
                 old_lines.append(line)
 
     updated_lines = []
-    with codecs.open(new, 'r', encoding='utf8') as f:
-        f.readline()    # don't care about header
+    with codecs.open(new, 'r', encoding='utf_16_le') as f:
+        f.readline()
         for line in f.readlines():
-            line = line.rstrip('\t\r\n')\
-                       .replace('TRUE', 'True')\
-                       .replace('FALSE', 'False')
+            line = _preprocess(line)
             if line and line not in old_lines:
                 updated_lines.append(line)
 
@@ -49,13 +60,13 @@ def diff_tsv(old, new):
 
 def update_old_tsv(tsv, families):
     max_num_parameters = 0
-    with codecs.open(tsv, 'w', encoding='utf8') as f:
+    with codecs.open(tsv, 'w', encoding='utf_16_le') as f:
         for _, family in families.items():
-            for type in family:
-                line = format_dict_as_tsv(type)
+            for _type in family:
+                line = format_dict_as_tsv(_type)
                 f.write(line + '\n')
 
-                num_parameters = len(type['parameters'])
+                num_parameters = len(_type['parameters'])
                 if num_parameters > max_num_parameters:
                     max_num_parameters = num_parameters
 
@@ -64,11 +75,14 @@ def update_old_tsv(tsv, families):
 
 def create_header(tsv, num_parameters):
     lines = []
-    with codecs.open(tsv, 'r', encoding='utf8') as f:
+    with codecs.open(tsv, 'r', encoding='utf_16_le') as f:
         for line in f.readlines():
             lines.append(line)
 
-    with codecs.open(tsv, 'w', encoding='utf8') as f:
+    with codecs.open(tsv, 'w', encoding='utf_16_le') as f:
+        # Prepend little-endian utf-16 byte order mark
+        f.write(u'\ufeff')
+
         # Prepend header
         parameter_cols = [
             'Name', 'Type', 'Group', 'Shared', 'Instance',
@@ -185,8 +199,8 @@ def get_shared_parameters():
     shared_parameters = {}
     for group in file.Groups:
         for definition in group.Definitions:
-            # shared params files are utf16
-            name = definition.Name.decode('utf-8', 'replace')
+            # shared params files are utf_16
+            name = definition.Name.decode('utf_16', 'strict')
             shared_parameters[name] = definition
 
     return shared_parameters
@@ -283,8 +297,12 @@ def update_value(family_manager, family_type, p, value, units):
         _str = family_type.AsString(p)
         _value_str = family_type.AsValueString(p)
         current_value = _value_str if _value_str else _str
+        current_value = current_value.replace('\t', '<tab>')
 
         if value != current_value:
+            value = value.replace('<tab>', '\t')\
+                         .replace('<cr>', '\r')\
+                         .replace('<lf>', '\n')
             family_manager.Set(p, value)
 
     else:
@@ -292,9 +310,6 @@ def update_value(family_manager, family_type, p, value, units):
 
 
 def update_formula(family_manager, p, formula):
-    # GSheets strips surrounding quotes, so we wrap in <text> tags
-    formula = formula.replace('<text>', '"').replace('</text>', '"')
-
     if formula != p.Formula:
         family_manager.SetFormula(p, formula)
 
@@ -324,7 +339,7 @@ def reorder_parameters(family_manager, sorted_params):
 
 
 if __name__ == '__main__':  # noqa: C901
-    new = forms.pick_file(file_ext='tsv', restore_dir=True)
+    new = forms.pick_file(file_ext='txt', restore_dir=True)
     if not new:
         sys.exit()
 
@@ -377,21 +392,24 @@ if __name__ == '__main__':  # noqa: C901
 
                 with rpw.db.Transaction('Update family', doc=doc):
                     family_types = updated_fams[path]
-                    for type in family_types:
-                        activate_family_type(family_manager, name=type['type'])
+                    for _type in family_types:
+                        activate_family_type(
+                            family_manager,
+                            name=_type['type']
+                        )
                         update_parameters(
                             family_manager=family_manager,
-                            parameters=type['parameters'],
+                            parameters=_type['parameters'],
                             units=doc.GetUnits()
                         )
 
                         # Update old tsv entry or add new entry
                         for i in range(len(existing_fams[path])):
-                            if existing_fams[path][i]['type'] == type['type']:
-                                existing_fams[path][i] = type
+                            if existing_fams[path][i]['type'] == _type['type']:
+                                existing_fams[path][i] = _type
                                 break
                         else:
-                            existing_fams[path].append(type)
+                            existing_fams[path].append(_type)
 
                 doc.Close(True)
             finally:
