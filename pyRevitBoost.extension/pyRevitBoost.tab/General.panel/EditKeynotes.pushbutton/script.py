@@ -8,8 +8,10 @@ from Autodesk.Revit.DB import KeynoteTable, ModelPathUtils
 
 from pyrevit import forms
 
-__doc__ = '''Collaborate on keynotes in real-time using the Atom text editor.
-Requires teletype-revit-linker package.'''
+__doc__ = '''\
+Collaborate on keynotes in real-time using the Atom text editor.
+Requires teletype-revit-linker package.
+'''
 __title__ = 'Edit\nKeynotes'
 __author__ = 'Zachary Mathews'
 
@@ -23,9 +25,9 @@ keynotes_path = ModelPathUtils.ConvertModelPathToUserVisiblePath(
 if not os.path.isfile(keynotes_path):
     forms.alert(
         title='Error',
-        msg='Could not find keynotes file for the current model.\n\n\
-Please be sure you have specified the appropriate file in \
-\'Keynoting Settings\' under Annotate > Keynote.'
+        msg='Could not find keynotes file for the current model.\n\n'
+            'Please be sure you have specified the appropriate file in '
+            '\'Keynoting Settings\' under Annotate > Keynote.'
     )
     sys.exit()
 

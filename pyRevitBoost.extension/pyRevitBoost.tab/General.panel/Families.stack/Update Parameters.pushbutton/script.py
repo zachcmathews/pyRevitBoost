@@ -1,19 +1,19 @@
+# pylint: disable=import-error
 import sys
 import os
-import math
 import codecs
 from collections import OrderedDict
 
 from Autodesk.Revit.DB import (BuiltInParameterGroup, ParameterType,
                                StorageType, UnitFormatUtils)
+from Autodesk.Revit.Exceptions import (CorruptModelException,
+                                       FileAccessException)
 
 import rpw
 from pyrevit import forms
 from boostutils import memoize
 
-__doc__ = '''\
-Update parameters for all families in a directory.
-'''
+__doc__ = 'Update parameters for all families in a directory.'
 __author__ = 'Zachary Mathews'
 __context__ = 'zerodoc'
 
@@ -22,23 +22,36 @@ app = uiapp.Application
 
 
 def diff_tsv(old, new):
+    def _preprocess(line):
+        line = line.rstrip('\t\r\n')\
+                   .replace('TRUE', 'True')\
+                   .replace('FALSE', 'False')
+
+        line_cols = line.split('\t')
+        for i, _ in enumerate(line_cols):
+            if (
+                line_cols[i].startswith('"')
+                and line_cols[i].endswith('"')
+            ):
+                line_cols[i] = line_cols[i][1:-1]
+                line_cols[i] = line_cols[i].replace('""', '"')
+
+        line = '\t'.join(line_cols)
+        return line
+
     old_lines = []
-    with codecs.open(old, 'r', encoding='utf8') as f:
-        f.readline()    # don't care about header
+    with codecs.open(old, 'r', encoding='utf_16_le') as f:
+        f.readline()
         for line in f.readlines():
-            line = line.rstrip('\t\r\n')\
-                       .replace('TRUE', 'True')\
-                       .replace('FALSE', 'False')
+            line = _preprocess(line)
             if line:
                 old_lines.append(line)
 
     updated_lines = []
-    with codecs.open(new, 'r', encoding='utf8') as f:
-        f.readline()    # don't care about header
+    with codecs.open(new, 'r', encoding='utf_16_le') as f:
+        f.readline()
         for line in f.readlines():
-            line = line.rstrip('\t\r\n')\
-                       .replace('TRUE', 'True')\
-                       .replace('FALSE', 'False')
+            line = _preprocess(line)
             if line and line not in old_lines:
                 updated_lines.append(line)
 
@@ -47,13 +60,13 @@ def diff_tsv(old, new):
 
 def update_old_tsv(tsv, families):
     max_num_parameters = 0
-    with codecs.open(tsv, 'w', encoding='utf8') as f:
-        for path, family in families.items():
-            for type in family:
-                line = format_dict_as_tsv(type)
+    with codecs.open(tsv, 'w', encoding='utf_16_le') as f:
+        for _, family in families.items():
+            for _type in family:
+                line = format_dict_as_tsv(_type)
                 f.write(line + '\n')
 
-                num_parameters = len(type['parameters'])
+                num_parameters = len(_type['parameters'])
                 if num_parameters > max_num_parameters:
                     max_num_parameters = num_parameters
 
@@ -62,11 +75,14 @@ def update_old_tsv(tsv, families):
 
 def create_header(tsv, num_parameters):
     lines = []
-    with codecs.open(tsv, 'r', encoding='utf8') as f:
+    with codecs.open(tsv, 'r', encoding='utf_16_le') as f:
         for line in f.readlines():
             lines.append(line)
 
-    with codecs.open(tsv, 'w', encoding='utf8') as f:
+    with codecs.open(tsv, 'w', encoding='utf_16_le') as f:
+        # Prepend little-endian utf-16 byte order mark
+        f.write(u'\ufeff')
+
         # Prepend header
         parameter_cols = [
             'Name', 'Type', 'Group', 'Shared', 'Instance',
@@ -93,9 +109,9 @@ def format_dict_as_tsv(d):
     return '\t'.join(tsv)
 
 
-def format_list_as_tsv(l):
+def format_list_as_tsv(_list):
     tsv = []
-    for i in l:
+    for i in _list:
         if isinstance(i, dict) or isinstance(i, OrderedDict):
             tsv.append(format_dict_as_tsv(i))
         else:
@@ -110,16 +126,15 @@ def parse_line(line):
         ('path', values[0]),
         ('category', values[1]),
         ('family', values[2]),
-        ('type', values[3] if len(values) > 3 else ' '),    # Gsheets strips spaces
+        ('type', values[3] if len(values) > 3 else ' '),
         ('parameters', [])
     ])
 
     parameter_cols = [
-        'name', 'type', 'group', 'shared', 'instance',
-        'reporting', 'value', 'formula'
+        'name', 'type', 'group', 'shared',
+        'instance', 'reporting', 'value', 'formula'
     ]
-    num_parameters = math.ceil(float(len(values)-4)/len(parameter_cols))
-    for i in range(4, 4 + int(num_parameters*len(parameter_cols)), len(parameter_cols)):
+    for i in range(4, len(values), len(parameter_cols)):
         param = OrderedDict()
         for j, col_name in enumerate(parameter_cols):
             if i+j < len(values):
@@ -184,8 +199,8 @@ def get_shared_parameters():
     shared_parameters = {}
     for group in file.Groups:
         for definition in group.Definitions:
-            # shared params files are utf16
-            name = definition.Name.decode('utf-8', 'replace')
+            # shared params files are utf_16
+            name = definition.Name.decode('utf_16', 'strict')
             shared_parameters[name] = definition
 
     return shared_parameters
@@ -205,7 +220,14 @@ def update_parameters(family_manager, parameters, units):
         formula = param['formula']
 
         if name not in family_params.keys():
-            p = create_parameter(family_manager, name, group, _type, isShared, isInstance)
+            p = create_parameter(
+                family_manager,
+                name,
+                group,
+                _type,
+                isShared,
+                isInstance
+            )
         else:
             p = family_params[name]
 
@@ -214,7 +236,13 @@ def update_parameters(family_manager, parameters, units):
         if formula:
             update_formula(family_manager, p, formula)
         elif value:
-            update_value(family_manager, family_manager.CurrentType, p, value, units)
+            update_value(
+                family_manager,
+                family_manager.CurrentType,
+                p,
+                value,
+                units
+            )
 
         sorted_params[name] = p
 
@@ -269,8 +297,12 @@ def update_value(family_manager, family_type, p, value, units):
         _str = family_type.AsString(p)
         _value_str = family_type.AsValueString(p)
         current_value = _value_str if _value_str else _str
+        current_value = current_value.replace('\t', '<tab>')
 
         if value != current_value:
+            value = value.replace('<tab>', '\t')\
+                         .replace('<cr>', '\r')\
+                         .replace('<lf>', '\n')
             family_manager.Set(p, value)
 
     else:
@@ -278,9 +310,6 @@ def update_value(family_manager, family_type, p, value, units):
 
 
 def update_formula(family_manager, p, formula):
-    # GSheets strips surrounding quotes, so we wrap in <text> tags
-    formula = formula.replace('<text>', '"').replace('</text>', '"')
-
     if formula != p.Formula:
         family_manager.SetFormula(p, formula)
 
@@ -309,8 +338,8 @@ def reorder_parameters(family_manager, sorted_params):
     family_manager.ReorderParameters(ordered_params)
 
 
-if __name__ == '__main__':
-    new = forms.pick_file(file_ext='tsv', restore_dir=True)
+if __name__ == '__main__':  # noqa: C901
+    new = forms.pick_file(file_ext='txt', restore_dir=True)
     if not new:
         sys.exit()
 
@@ -331,13 +360,13 @@ if __name__ == '__main__':
             exitscript=True
         )
 
-    parsed_old_lines = [parse_line(l) for l in old_lines]
-    existing_families = group_by_path(parsed_old_lines)
-    parsed_updated_lines = [parse_line(l) for l in updated_lines]
-    updated_families = group_by_path(parsed_updated_lines)
+    parsed_old_lines = [parse_line(line) for line in old_lines]
+    existing_fams = group_by_path(parsed_old_lines)
+    parsed_updated_lines = [parse_line(line) for line in updated_lines]
+    updated_fams = group_by_path(parsed_updated_lines)
     selected_updates = forms.SelectFromList.show(
         title='Apply updates',
-        context=updated_families.keys(),
+        context=updated_fams.keys(),
         multiselect=True,
         width=800
     )
@@ -345,7 +374,7 @@ if __name__ == '__main__':
         sys.exit()
 
     cnt = 0
-    total = len(updated_families)
+    total = len(updated_fams)
     with forms.ProgressBar(
         title='{value} of {max_value}',
         cancellable=True
@@ -356,32 +385,35 @@ if __name__ == '__main__':
 
             try:
                 doc = app.OpenDocumentFile(path)
-            except:
+            except (CorruptModelException, FileAccessException):
                 print("The following family is corrupt: " + path)
             else:
                 family_manager = doc.FamilyManager
 
                 with rpw.db.Transaction('Update family', doc=doc):
-                    family_types = updated_families[path]
-                    for type in family_types:
-                        activate_family_type(family_manager, name=type['type'])
+                    family_types = updated_fams[path]
+                    for _type in family_types:
+                        activate_family_type(
+                            family_manager,
+                            name=_type['type']
+                        )
                         update_parameters(
                             family_manager=family_manager,
-                            parameters=type['parameters'],
+                            parameters=_type['parameters'],
                             units=doc.GetUnits()
                         )
 
                         # Update old tsv entry or add new entry
-                        for i in range(len(existing_families[path])):
-                            if existing_families[path][i]['type'] == type['type']:
-                                existing_families[path][i] = type
+                        for i in range(len(existing_fams[path])):
+                            if existing_fams[path][i]['type'] == _type['type']:
+                                existing_fams[path][i] = _type
                                 break
                         else:
-                            existing_families[path].append(type)
+                            existing_fams[path].append(_type)
 
                 doc.Close(True)
             finally:
                 cnt += 1
                 pb.update_progress(cnt, total)
 
-        update_old_tsv(tsv=old, families=existing_families)
+        update_old_tsv(tsv=old, families=existing_fams)
