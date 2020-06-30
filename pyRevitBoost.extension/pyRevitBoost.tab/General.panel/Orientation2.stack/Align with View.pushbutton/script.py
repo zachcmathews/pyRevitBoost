@@ -35,10 +35,16 @@ if __name__ == '__main__':
         for el in elements:
             rot_x = el.GetTotalTransform()\
                       .OfVector(XYZ.BasisX)\
-                      .AngleOnPlaneTo(view.RightDirection, view.ViewDirection)
+                      .AngleOnPlaneTo(
+                          view.RightDirection,
+                          view.ViewDirection
+                      )
             rot_y = el.GetTotalTransform()\
                       .OfVector(XYZ.BasisX)\
-                      .AngleOnPlaneTo(view.UpDirection, view.ViewDirection)
+                      .AngleOnPlaneTo(
+                          view.UpDirection,
+                          view.ViewDirection
+                      )
             rot_neg_x = el.GetTotalTransform()\
                           .OfVector(XYZ.BasisX)\
                           .AngleOnPlaneTo(
@@ -65,7 +71,10 @@ if __name__ == '__main__':
                 [rot_x, rot_y, rot_neg_x, rot_neg_y],
                 key=lambda r: abs(r)
             )
-            z_axis = Line.CreateUnbound(el.Location.Point, view.ViewDirection)
+            z_axis = Line.CreateUnbound(
+                el.Location.Point,
+                view.ViewDirection
+            )
 
             try:
                 ElementTransformUtils.RotateElement(
