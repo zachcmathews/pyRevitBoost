@@ -5,6 +5,7 @@ import re
 from functools import partial
 
 from Autodesk.Revit.DB import BuiltInParameter, FamilyInstance, Transform
+from Autodesk.Revit.Exceptions import InvalidOperationException
 
 import rpw
 from pyrevit import script, forms
@@ -38,7 +39,7 @@ def family_filter(el, family):
         get_parameter(
             el,
             builtin='ELEM_FAMILY_PARAM'
-        ).AsValueString() in families
+        ).AsValueString() == family
     )
 
 
@@ -75,7 +76,7 @@ def phase_filter(el, phase, current_phase, phase_map=None):
 
 
 def parameter_filter(el, parameter):
-    pattern = r'^(?P<parameter>.+?)\s*(?P<comparison_operator>=|>|<|>=|<=)\s*(?P<value>.+)$'
+    pattern = r'^(?P<parameter>.+?)\s*(?P<comparison_operator>=|>|<|>=|<=)\s*(?P<value>.+)$'    # noqa E501
     match = re.search(pattern, parameter)
     if not match:
         return None
@@ -146,6 +147,14 @@ def get_filters(mapping, current_phase, phase_map=None):
     return filters
 
 
+def passes(element, filters):
+    for _filter in filters:
+        if not _filter(element.unwrap()):
+            return False
+    else:
+        return True
+
+
 def pair(el, others, others_transform):
     closest, min_distance = None, 0
     for other in others:
@@ -161,20 +170,20 @@ def pair(el, others, others_transform):
     }
 
 
-def yank(pair, mapping):
+def yank(_pair, mapping):
     value = ''
     for name in mapping['from']['parameters']:
         pattern = r'^separator\((?P<separator>.+)\)$'
-        match = re.search(pattern, name)
-        if match:
-            value += match.group('separator')
+        is_separator = re.search(pattern, name)
+        if is_separator:
+            value += is_separator.group('separator')
         else:
-            parameter = get_parameter(pair['from'], name=name)
+            parameter = get_parameter(_pair['from'], name=name)
             _pval = parameter.AsString()
             value += _pval if _pval else ''
 
     for name in mapping['to']['parameters']:
-        parameter = get_parameter(pair['to'], name=name)
+        parameter = get_parameter(_pair['to'], name=name)
         parameter.Set(value)
 
 
@@ -191,7 +200,7 @@ if __name__ == '__main__':
     )
     reuse_config = False
     if hasattr(script_config, 'config_file'):
-        config_file=script_config.config_file
+        config_file = script_config.config_file
         if os.path.isfile(script_config.config_file):
             reuse_config = forms.alert(
                 title='YankParameters',
@@ -247,8 +256,7 @@ if __name__ == '__main__':
                 doc=from_doc,
                 of_category=mapping['from']['category'],
                 of_class=FamilyInstance,
-                where=lambda e: all(f(e.unwrap()) for f in filters) \
-                                if filters else True
+                where=partial(passes, filters=filters)
             ).get_elements(wrapped=False)
 
             filters = get_filters(
@@ -259,14 +267,13 @@ if __name__ == '__main__':
                 elements=selection.get_elements(),
                 of_category=mapping['to']['category'],
                 of_class=FamilyInstance,
-                where=lambda e: all(f(e.unwrap()) for f in filters) \
-                                if filters else True
+                where=partial(passes, filters=filters)
             ).get_elements(wrapped=False)
 
             if link_instance:
                 xfm = link_instance.GetTotalTransform()
             else:
-                xfm = Tranform.Identity
+                xfm = Transform.Identity
 
             if from_elements:
                 for el in to_elements:
@@ -277,6 +284,7 @@ if __name__ == '__main__':
                     )
                     mapping_pairs.append((mapping, _pair))
 
+                    not_yanked.discard(el.Id)
                     total += 1
                     pb.update_progress(
                         new_value=total
@@ -295,25 +303,18 @@ if __name__ == '__main__':
                     break
 
                 try:
-                    if mapped.get(el.Id):
-                        mapping['to']['parameters'] = [
-                            p for p in mapping['to']['parameters']
-                            if p not in mapped[el.Id]
-                        ]
-
                     yank(_pair, mapping)
-                except:
+                except (AttributeError, InvalidOperationException):
                     if not failed.get(el.Id):
                         failed[el.Id] = set(mapping['to']['parameters'])
                     else:
-                        failed[el.Id] += set(mapping['to']['parameters'])
+                        failed[el.Id].update(mapping['to']['parameters'])
                 else:
                     if failed.get(el.Id):
                         failed[el.Id] -= set(mapping['to']['parameters'])
                         if not failed[el.Id]:
                             del failed[el.Id]
                 finally:
-                    not_yanked.discard(el.Id)
                     cnt += 1
                     pb.update_progress(
                         new_value=cnt,
