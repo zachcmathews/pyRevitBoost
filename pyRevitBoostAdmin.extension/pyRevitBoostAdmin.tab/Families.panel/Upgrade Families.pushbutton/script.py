@@ -1,13 +1,15 @@
+# pylint: disable=import-error
 import os
 import sys
 import re
 
+from Autodesk.Revit.Exceptions import (CorruptModelException,
+                                       FileAccessException)
+
 import rpw
 from pyrevit import forms
 
-__doc__ = '''\
-Upgrade all families in a directory to the current Revit version.
-'''
+__doc__ = 'Upgrade all families in a directory to the current Revit version.'
 __author__ = 'Zachary Mathews'
 __context__ = 'zerodoc'
 
@@ -17,7 +19,7 @@ app = uiapp.Application
 
 def get_family_paths(directory):
     family_paths = set()
-    for root, subdirs, files in os.walk(directory):
+    for root, _, files in os.walk(directory):
         for file in files:
             isFamilyDoc = file.endswith('.rfa')
             isRevision = re.search(r'^.+\.[0-9]+\.rfa$', file) is not None
@@ -29,7 +31,7 @@ def get_family_paths(directory):
 
 
 def get_revision_paths(directory):
-    for root, subdirs, files in os.walk(directory):
+    for root, _, files in os.walk(directory):
         for file in files:
             isFamilyDoc = file.endswith('.rfa')
             isRevision = re.search(r'^.+\.[0-9]+\.rfa$', file) is not None
@@ -59,7 +61,7 @@ if __name__ == '__main__':
             try:
                 doc = app.OpenDocumentFile(path)
                 doc.Close(True)
-            except:
+            except (CorruptModelException, FileAccessException):
                 print("The following family is corrupt: " + path)
             finally:
                 cnt += 1
