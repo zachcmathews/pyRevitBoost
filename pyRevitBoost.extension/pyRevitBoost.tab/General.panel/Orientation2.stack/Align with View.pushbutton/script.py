@@ -1,6 +1,9 @@
+# pylint: disable=import-error
 import math
 
-from Autodesk.Revit.DB import ElementTransformUtils, FamilyInstance, Line, ViewPlan, XYZ
+from Autodesk.Revit.DB import (ElementTransformUtils, FamilyInstance, Line,
+                               ViewPlan, XYZ)
+from Autodesk.Revit.Exceptions import ArgumentException
 
 import rpw
 from pyrevit import forms
@@ -28,20 +31,32 @@ if __name__ == '__main__':
     )
 
     failed = []
-    with rpw.db.Transaction('Align with '):
+    with rpw.db.Transaction('Align with View'):
         for el in elements:
             rot_x = el.GetTotalTransform()\
                       .OfVector(XYZ.BasisX)\
-                      .AngleOnPlaneTo(view.RightDirection, view.ViewDirection)
+                      .AngleOnPlaneTo(
+                          view.RightDirection,
+                          view.ViewDirection
+                      )
             rot_y = el.GetTotalTransform()\
                       .OfVector(XYZ.BasisX)\
-                      .AngleOnPlaneTo(view.UpDirection, view.ViewDirection)
+                      .AngleOnPlaneTo(
+                          view.UpDirection,
+                          view.ViewDirection
+                      )
             rot_neg_x = el.GetTotalTransform()\
                           .OfVector(XYZ.BasisX)\
-                          .AngleOnPlaneTo(-view.RightDirection, view.ViewDirection)
+                          .AngleOnPlaneTo(
+                              -view.RightDirection,
+                              view.ViewDirection
+                          )
             rot_neg_y = el.GetTotalTransform()\
                           .OfVector(XYZ.BasisX)\
-                          .AngleOnPlaneTo(-view.UpDirection, view.ViewDirection)
+                          .AngleOnPlaneTo(
+                              -view.UpDirection,
+                              view.ViewDirection
+                          )
 
             while rot_x > math.pi:
                 rot_x -= 2*math.pi
@@ -56,7 +71,10 @@ if __name__ == '__main__':
                 [rot_x, rot_y, rot_neg_x, rot_neg_y],
                 key=lambda r: abs(r)
             )
-            z_axis = Line.CreateUnbound(el.Location.Point, view.ViewDirection)
+            z_axis = Line.CreateUnbound(
+                el.Location.Point,
+                view.ViewDirection
+            )
 
             try:
                 ElementTransformUtils.RotateElement(
@@ -65,7 +83,7 @@ if __name__ == '__main__':
                     z_axis,
                     rotation
                 )
-            except:
+            except ArgumentException:
                 failed.append(el.Id)
 
     if failed:
