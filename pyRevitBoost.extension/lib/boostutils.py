@@ -1,18 +1,4 @@
 # pylint: disable=import-error
-import clr
-clr.AddReference('System.Core')
-from System.Dynamic import ExpandoObject
-
-import math
-import codecs
-import inspect
-
-from Autodesk.Revit.DB import (BuiltInParameter, Domain, Ellipse, Line,
-                               ViewPlan, XYZ)
-
-from pyrevit.coreutils import yaml
-import rpw
-
 
 class memoize(object):
     def __init__(self, func):
@@ -26,37 +12,13 @@ class memoize(object):
         return self.cache[key]
 
     def normalize_args(self, args, kwargs):
+        import inspect
         spec = inspect.getargs(self.func.__code__).args
         return dict(kwargs.items() + zip(spec, args))
 
     def key(self, args, kwargs):
         normalized_args = self.normalize_args(args, kwargs)
         return tuple(sorted(normalized_args.items()))
-
-
-def _convert_yamldotnet_to_python(ynode, level=0, convert_booleans=False):
-    if hasattr(ynode, 'Children'):
-        d = {}
-        value_childs = []
-        for child in ynode.Children:
-            # Handle child dictionaries
-            if hasattr(child, 'Key') and hasattr(child, 'Value'):
-                d[child.Key.Value] = \
-                    _convert_yamldotnet_to_python(child.Value, level=level+1)
-            elif hasattr(child, 'Value'):
-                val = child.Value
-                value_childs.append(val)
-
-            # Handle child lists
-            elif hasattr(child, 'Children'):
-                val = _convert_yamldotnet_to_python(child, level=level+1)
-                value_childs.append(val)
-            elif hasattr(child, 'Values'):
-                value_childs.append(child.Values)
-
-        return value_childs or d
-    else:
-        return ynode.Value
 
 
 def is_inside_bounding_box(point, box, include_z=True):
@@ -73,35 +35,15 @@ def is_inside_bounding_box(point, box, include_z=True):
         )
 
 
-def is_inside_view(point, view, include_z=True):
+def is_inside_viewplan(point, view):
+    from Autodesk.Revit.DB import ViewPlan
     assert(type(view) is ViewPlan)
-    return is_inside_bounding_box(point, view.CropBox, include_z)
-
-
-def is_close(a, b, abs_tol=1e-9):
-    return abs(a-b) < abs_tol
-
-
-def is_parallel(v1, v2):
-    return (
-        v1.Normalize().IsAlmostEqualTo(v2)
-        or v1.Normalize().Negate().IsAlmostEqualTo(v2)
-    )
-
-
-def is_almost_evenly_divisible(numerator, denominator):
-    isDivisible = is_close(numerator, denominator)
-    while (
-        not isDivisible
-        and numerator > denominator
-    ):
-        numerator /= denominator
-        isDivisible = is_close(numerator, denominator)
-
-    return isDivisible
+    return is_inside_bounding_box(point, view.CropBox, include_z=False)
 
 
 def draw_BoundingBoxXYZ_2D(doc, view, bounding_box):
+    from Autodesk.Revit.DB import Line, XYZ
+
     x0y0 = XYZ(bounding_box.Min.X, bounding_box.Min.Y, 0)
     x1y1 = XYZ(bounding_box.Max.X, bounding_box.Max.Y, 0)
     x0y1 = XYZ(x0y0.X, x1y1.Y, 0)
@@ -118,6 +60,9 @@ def draw_BoundingBoxXYZ_2D(doc, view, bounding_box):
 
 
 def draw_circle(center, radius, view, doc):
+    import math
+    from Autodesk.Revit.DB import Ellipse, XYZ
+
     xaxis, yaxis = XYZ.BasisX, XYZ.BasisY
     start, end = 0, 2*math.pi
     circle = Ellipse.CreateCurve(
@@ -135,30 +80,14 @@ def draw_circle(center, radius, view, doc):
     )
 
 
-def expando_to_dict(expando):
-    e = ExpandoObject()
-    default_attrs = dir(e)
-    keys = filter(lambda a: a not in default_attrs, dir(expando))
-
-    d = {}
-    for k in keys:
-        d[k] = getattr(expando, k)
-
-    return d
-
-
-def find_closest(to, elements):
-    return min(
-        elements,
-        key=lambda e: e.Location.Point.DistanceTo(to.Location.Point)
-    )
-
-
 def get_name(el):
+    import rpw
     return rpw.db.Element(el).name
 
 
 def get_parameter(el, name=None, builtin=None):
+    from Autodesk.Revit.DB import BuiltInParameter
+
     if builtin:
         param = getattr(BuiltInParameter, builtin)
         instanceParam = el.get_Parameter(param)
@@ -179,43 +108,48 @@ def get_parameter(el, name=None, builtin=None):
         return None
 
 
-def get_parameters(el):
-    instance_params = [p for p in el.Parameters]
-    if el.Symbol:
-        type_params = [p for p in el.Symbol.Parameters]
+def load_as_python(yaml_file):
+    from pyrevit.coreutils import yaml
 
-    return {
-        'instance': instance_params,
-        'type': type_params if type_params else []
-    }
+    def _convert_yamldotnet_to_python(ynode, level=0):
+        if hasattr(ynode, 'Children'):
+            d = {}
+            value_childs = []
+            for child in ynode.Children:
+                # Handle child dictionaries
+                if hasattr(child, 'Key') and hasattr(child, 'Value'):
+                    d[child.Key.Value] = _convert_yamldotnet_to_python(
+                        child.Value,
+                        level=level+1
+                    )
+                elif hasattr(child, 'Value'):
+                    val = child.Value
+                    value_childs.append(val)
 
+                # Handle child lists
+                elif hasattr(child, 'Children'):
+                    val = _convert_yamldotnet_to_python(
+                        child,
+                        level=level+1
+                    )
+                    value_childs.append(val)
+                elif hasattr(child, 'Values'):
+                    value_childs.append(child.Values)
 
-def has_electrical_connectors(element):
-    return (
-        element.MEPModel
-        and element.MEPModel.ConnectorManager
-        and not element.MEPModel.ConnectorManager.Connectors.IsEmpty
-    )
+            return value_childs or d
+        else:
+            return ynode.Value
 
-
-def get_electrical_connectors(element, default=[]):
-    if has_electrical_connectors(element):
-        return [
-            c for c in element.MEPModel.ConnectorManager.Connectors
-            if c.Domain == Domain.DomainElectrical
-        ]
-    else:
-        return default
-
-
-def load_as_python(yaml_file, convert_booleans=False):
     yamldotnet = yaml.load(yaml_file)
-    return _convert_yamldotnet_to_python(
-        yamldotnet, convert_booleans
-    ) if yamldotnet else None
+    if yamldotnet:
+        return _convert_yamldotnet_to_python(yamldotnet)
+    else:
+        return None
 
 
 def load_tsv(tsv):
+    import codecs
+
     out = []
     error_codes = [
         '#VALUE!', '#NAME?', '#DIV/0!', '#REF!',
@@ -231,4 +165,5 @@ def load_tsv(tsv):
 
 
 def to_XY(xyz):
+    from Autodesk.Revit.DB import XYZ
     return XYZ(xyz.X, xyz.Y, 0)

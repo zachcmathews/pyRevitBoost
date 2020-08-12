@@ -34,12 +34,11 @@ def get_electrical_connectors(element):
 
 
 def is_inside_view(wire, view):
-    from functools import partial
-    from boostutils import is_inside_view
-
-    is_inside_view = partial(is_inside_view, view=view, include_z=False)
-    points = [wire.GetVertex(0), wire.GetVertex(wire.NumberOfVertices-1)]
-    return all(is_inside_view(point=p) for p in points)
+    from boostutils import is_inside_viewplan
+    return (
+        is_inside_viewplan(point=wire.GetVertex(0), view=view)
+        and is_inside_viewplan(point=wire.GetVertex(0), view=view)
+    )
 
 
 if __name__ == '__main__':
