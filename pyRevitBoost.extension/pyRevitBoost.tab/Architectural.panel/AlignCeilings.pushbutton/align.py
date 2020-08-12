@@ -1,9 +1,8 @@
-from Autodesk.Revit.DB import ElementTransformUtils, Reference
-
-from boostutils import is_almost_evenly_divisible, is_parallel, to_XY
-
+# pylint: disable=import-error
 
 def align_ceiling_representation_with_gridlines(ceiling, grid, view, doc):
+    from Autodesk.Revit.DB import Reference
+
     for line in grid:
         hatch_line = line['hatch_line']
         rp = line['reference_plane']
@@ -24,6 +23,9 @@ def align_ceiling_representation_with_gridlines(ceiling, grid, view, doc):
 
 
 def align_grid_with_edges(grid, edges, doc):
+    from Autodesk.Revit.DB import ElementTransformUtils
+    from boostutils import to_XY
+
     succeeded, failed = [], []
     for line in grid:
         parallel_edges = _find_edges_in_direction(
@@ -59,11 +61,30 @@ def align_grid_with_edges(grid, edges, doc):
 
 def _find_edges_in_direction(edges, direction):
     for edge in edges:
-        if is_parallel(edge.Direction, direction):
+        if _is_parallel(edge.Direction, direction):
             yield edge
 
 
 def _find_fitting_edges(edges, spacing):
     for edge in edges:
-        if is_almost_evenly_divisible(edge.Length, spacing):
+        if _is_almost_evenly_divisible(edge.Length, spacing):
             yield edge
+
+
+def _is_parallel(v1, v2):
+    return (
+        v1.Normalize().IsAlmostEqualTo(v2)
+        or v1.Normalize().Negate().IsAlmostEqualTo(v2)
+    )
+
+
+def _is_almost_evenly_divisible(numerator, denominator):
+    is_divisible = abs(numerator-denominator) < 1e-9
+    while (
+        not is_divisible
+        and numerator > denominator
+    ):
+        numerator /= denominator
+        is_divisible = abs(numerator-denominator) < 1e-9
+
+    return is_divisible
