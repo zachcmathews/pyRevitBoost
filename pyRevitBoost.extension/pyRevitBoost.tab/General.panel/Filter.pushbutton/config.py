@@ -255,7 +255,6 @@ if __name__ == '__main__':
     elements = [
         _get_element_dict(e, meta=_get_element_meta(e))
         for e in selection.get_elements(wrapped=False)
-        if _get_element_meta(e)
     ]
 
     parameters = _get_filterable_parameters(elements)
