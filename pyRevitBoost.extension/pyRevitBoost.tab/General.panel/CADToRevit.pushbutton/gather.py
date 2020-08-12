@@ -1,6 +1,4 @@
 # pylint: disable=import-error
-from itertools import chain
-
 from Autodesk.Revit.DB import (GeometryInstance, HostObjectUtils, Options,
                                ShellLayerType, XYZ)
 
@@ -8,6 +6,7 @@ from rpw.db import Collector
 
 from boostutils import get_name, memoize
 from parse import parse_block_name
+
 
 # To make this work with SelectFromList form, name must be an object attribute
 class _cad_import():
@@ -148,9 +147,11 @@ def get_cad_imports():
         ) for i in cad_imports
     ]
 
+
 @memoize
 def get_ceilings():
     return Collector(of_class='Ceiling').get_elements(wrapped=False)
+
 
 @memoize
 def get_ceiling_faces():
@@ -166,6 +167,7 @@ def get_ceiling_faces():
         face_refs.append(_face_refs)
 
     return zip(ceilings, face_refs)
+
 
 @memoize
 def get_family_types():
