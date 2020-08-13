@@ -1,0 +1,19 @@
+Block	Category	Family	Type	Host	Backup-Host	Origin-Offset	Rotate-Origin-Offset	Orientation-Offset	Parameter	Value	Parameter	Value
+2X4L	Lighting Fixtures	TYPE A	AX - Existing 4-lamp fixture	Ceiling	"Reference Plane (01 LEVEL - 9'-0"")"	"(1' 0"", 1' 0"")"	-90deg	-90deg				
+												
+												
+												
+												
+												
+												
+												
+												
+												
+												
+												
+												
+												
+												
+												
+												
+												

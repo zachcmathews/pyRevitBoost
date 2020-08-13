@@ -1,2 +1,19 @@
 theme: 'just-the-docs'
 remote_theme: pmarsceill/just-the-docs
+
+# Header
+aux_links:
+  'pyRevitBoost on GitHub'
+    - 'https://github.com/zachcmathews/pyRevitBoost'
+aux_links_new_tab: true
+
+# Footer
+footer_content: 'Copyright &copy; 2020 Zachary Mathews. Distributed under a GPLv3 license.'
+gh_edit_link: true
+gh_edit_repository: 'https://github.com/zachcmathews/pyRevitBoost'
+gh_edit_branch: 'gh-pages'
+gh_edit_view_mode: 'edit'
+
+# Google Analytics
+ga_tracking: UA-27240029-7
+ga_tracking_anonymize_ip: true
