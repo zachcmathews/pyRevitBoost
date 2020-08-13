@@ -27,25 +27,25 @@ A mapping should follow the format listed below:
 | _U31   | Lighting Fixtures | TYPE A - RECESSED 2x4 LIGHT FIXTURE - LED | CX - Existing 2-lamp fixture               | Ceiling             | Reference Plane (01 LEVEL - 9'-0") | (3 5/8", 9 111/128") | -90°                 | -90°               |                |       |
 
 Required fields:
-- *Block* = name of AutoCAD block excluding everything after the last 
+- **Block** = name of AutoCAD block excluding everything after the last 
 underscore.
-- *Category* = category of Revit family type
-- *Family* = name of Revit family
-- *Type* = name of Revit family
-- *Host* = where to host placed family instance
+- **Category** = category of Revit family type
+- **Family** = name of Revit family
+- **Type** = name of Revit family
+- **Host** = where to host placed family instance
     - one of  _Ceiling, Reference Plane, Level, Wall and Level_
 
 Optional fields:
-- *Backup-Host* = fall-through host if no ceiling is found
-- *Origin-Offset* = how far the CAD block's origin is offset from the origin 
+- **Backup-Host** = fall-through host if no ceiling is found
+- **Origin-Offset** = how far the CAD block's origin is offset from the origin 
 of the Revit family type. Specified in the form (x, y) where x,y are in the 
 project's units of length.
-- *Rotate-Origin-Offset* = useful for correcting the *Origin-Offset* if you 
+- **Rotate-Origin-Offset** = useful for correcting the *Origin-Offset* if you 
 measured after rotating the CAD import
-- *Orientation-Offset* = how much the CAD block is rotated with respect to the 
+- **Orientation-Offset** = how much the CAD block is rotated with respect to the 
 placed Revit family. (e.g. some families may be placed longitidunally where the 
 block may have been placed latitudinally)
-- *Parameter* and *Value* = set value of parameter name to value. (e.g. set 
+- **Parameter** and **Value** = set value of parameter name to value. (e.g. set 
 height after placing level-based families)
 
 Find a template here: [CADToRevit.txt](/assets/templates/CADToRevit.txt)
