@@ -3,7 +3,7 @@ remote_theme: pmarsceill/just-the-docs
 
 # Header
 aux_links:
-	'pyRevitBoost on GitHub'
+	'pyRevitBoost on GitHub':
 		- 'https://github.com/zachcmathews/pyRevitBoost'
 aux_links_new_tab: true
 
