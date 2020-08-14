@@ -14,13 +14,13 @@ Currently available commands:
 - [Yank Parameters](/pyRevitBoost/Yank_Parameters.html)
 - [Geometry](/pyRevitBoost/Geometry/index.html)
     - [Flip Reference Plane](/pyRevitBoost/Geometry/Flip_Reference_Plane.html)
-    - Match Work Plane Normal
-    - Rotate Multiple
-    - Align with View
-- Family Management
+    - [Match Work Plane Normal](/pyRevitBoost/Geometry/Match_Work_Plane_Normal.html)
+    - [Rotate Multiple](/pyRevitBoost/Geometry/Rotate_Multiple.html)
+    - [Align with View](/pyRevitBoost/Geometry/Align_with_View.html)
+- [Families](/pyRevitBoost/Families/index.html)
     - Extract Parameters
     - Update Parameters
-- Architectural
-    - Align Ceilings
-- Electrical
-    - Reattach Wires
+- [Architectural](/pyRevitBoost/Architectural/index.html)
+    - [Align Ceilings](/pyRevitBoost/Architectural/Align_Ceilings.html)
+- [Electrical](/pyRevitBoost/Electrical/index.html)
+    - [Reattach Wires](/pyRevitBoost/Electrical/Reattach_Wires.html)
