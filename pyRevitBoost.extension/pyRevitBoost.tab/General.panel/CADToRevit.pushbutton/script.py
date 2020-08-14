@@ -50,7 +50,7 @@ if hasattr(script_config, 'config_file'):
 if not reuse_config:
     with forms.WarningBar(title='Please select a configuration file'):
         config_file = forms.pick_file(
-            files_filter='Tab-separated Values File (*.tsv)|*.tsv',
+            files_filter='Tab-separated Values File (*.txt)|*.txt',
             restore_dir=True
         )
 if not config_file:
