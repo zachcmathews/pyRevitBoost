@@ -1,0 +1,29 @@
+-   from:
+        model: MEC
+        category: Mechanical Equipment
+        phase: <current>
+        exclude:
+        - Designation = L
+        parameters:
+        - Designation
+        - separator(-)
+        - Mark
+    to:
+        category: Electrical Fixtures
+        phase: <current>
+        parameters:
+        - Equipment ID
+
+-   from:
+        model: MEC
+        category: Mechanical Equipment
+        phase: <current>
+        exclude:
+        - Designation = L
+        parameters:
+        - Description
+    to:
+        category: Electrical Fixtures
+        phase: <current>
+        parameters:
+        - Equipment Desc.
