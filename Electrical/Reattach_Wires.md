@@ -18,5 +18,6 @@ need to fret if other elements are selected._
 
 _Note: any wires that run outside of the view will be ignored. This is 
 intentionally done to prevent unseen side-effects._
+
 _Note: if a wire's ends are too close together resulting in both ends trying 
-to connect to the same electrical connector, then the command will fail.
+to connect to the same electrical connector, then the command will fail._
