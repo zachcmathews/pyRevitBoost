@@ -200,7 +200,7 @@ def get_shared_parameters():
     for group in file.Groups:
         for definition in group.Definitions:
             # shared params files are utf_16
-            name = definition.Name.decode('utf_16', 'strict')
+            name = definition.Name
             shared_parameters[name] = definition
 
     return shared_parameters
@@ -289,6 +289,7 @@ def update_value(family_manager, family_type, p, value, units):
         )
         if success:
             if value != family_type.AsDouble(p):
+                family_manager.SetFormula(p, None)
                 family_manager.Set(p, value)
         else:
             raise ValueError
@@ -296,7 +297,7 @@ def update_value(family_manager, family_type, p, value, units):
     elif p.StorageType == StorageType.String:
         _str = family_type.AsString(p)
         _value_str = family_type.AsValueString(p)
-        current_value = _value_str if _value_str else _str
+        current_value = _value_str if _value_str else _str if _str else ''
         current_value = current_value.replace('\t', '<tab>')
 
         if value != current_value:
@@ -318,10 +319,11 @@ def update_properties(family_manager, p, group, isInstance, isReporting):
     if p.Definition.ParameterGroup != group:
         p.Definition.ParameterGroup = group
 
-    if isInstance:
-        family_manager.MakeInstance(p)
-    else:
-        family_manager.MakeType(p)
+    if hasattr(p.Definition, 'BuiltInParameter') and not p.Definition.BuiltInParameter:
+        if isInstance:
+            family_manager.MakeInstance(p)
+        else:
+            family_manager.MakeType(p)
 
     if isReporting:
         family_manager.MakeReporting(p)
