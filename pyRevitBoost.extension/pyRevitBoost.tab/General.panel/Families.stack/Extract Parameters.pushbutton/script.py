@@ -50,7 +50,7 @@ def extract_parameters(family_doc):
 
     fm = family_doc.FamilyManager
     types = [t for t in fm.Types]
-    params = [p for p in fm.GetParameters() if p.UserModifiable]
+    params = [p for p in fm.GetParameters()]
 
     extracted = dict((t.Name, []) for t in types)
     for t in types:
