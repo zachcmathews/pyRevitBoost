@@ -12,7 +12,7 @@ __doc__ = '''\
 Collaborate on keynotes in real-time using the Atom text editor.
 Requires teletype-revit-linker package.
 '''
-__title__ = 'Edit\nKeynotes'
+__title__ = 'Edit Keynotes'
 __author__ = 'Zachary Mathews'
 
 doc = rpw.revit.doc
