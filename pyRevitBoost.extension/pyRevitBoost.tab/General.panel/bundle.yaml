@@ -1,8 +1,9 @@
 layout:
     - CADToRevit
-    - EditKeynotes
     - Filter
     - YankParameters
+    - --------------
+    - Keynotes
     - --------------
     - Orientation
     - Orientation2
