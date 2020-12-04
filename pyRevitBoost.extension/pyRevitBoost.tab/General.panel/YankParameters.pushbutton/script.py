@@ -30,7 +30,8 @@ def get_link_instance(title):
 
 
 def doc_title_filter(link, title):
-    if title in link.GetLinkDocument().Title:
+    link_doc = link.GetLinkDocument()
+    if hasattr(link_doc, 'Title') and title in link_doc.Title:
         return True
 
 
