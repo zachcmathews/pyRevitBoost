@@ -1,8 +1,19 @@
 # pylint: disable=import-error
+from functools import partial
 from System.ComponentModel import (INotifyPropertyChanged,
                                    PropertyChangedEventArgs)
+from Autodesk.Revit.DB import BuiltInParameter
 
+import rpw
 from pyrevit import forms
+
+__doc__ = '''\
+Filter based on category, family, type and workset.
+
+Shift+Click = Filter based on user-selected parameters.
+'''
+__title__ = 'Filter'
+__author__ = 'Zachary Mathews'
 
 
 class Option(INotifyPropertyChanged):
@@ -175,7 +186,6 @@ class FilterForm(forms.WPFWindow):
 
 
 def _get_element_meta(e, workset_table):
-    from Autodesk.Revit.DB import BuiltInParameter
     category = e.Category
     family = e.get_Parameter(BuiltInParameter.ELEM_FAMILY_PARAM)
     _type = e.get_Parameter(BuiltInParameter.ELEM_TYPE_PARAM)
@@ -199,8 +209,6 @@ def _get_element_meta(e, workset_table):
 
 
 if __name__ == '__main__':
-    from functools import partial
-    import rpw
     uidoc = rpw.revit.uidoc
     doc = rpw.revit.doc
     selection = rpw.ui.Selection()
