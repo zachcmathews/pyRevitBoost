@@ -28,7 +28,7 @@ __author__ = 'Zachary Mathews'
 
 class TrieNode:
     def __init__(self):
-        self.children = [None]*(26+10)
+        self.children = [None] * (26 + 10)
         self.terminal_items = []
         self.items = []
 
@@ -306,6 +306,9 @@ def _insert_family_type(db):
 
 
 def _index_libraries():
+    def _is_new(file, last_updated):
+        return os.path.getctime(file) > last_updated
+
     def _is_updated(file, last_updated):
         return os.path.getmtime(file) > last_updated
 
@@ -330,6 +333,15 @@ def _index_libraries():
             if 'family_types' not in libraries.keys():
                 libraries['family_types'] = {}
     else:
+        user_wishes_to_proceed = forms.alert(
+            msg='This might take a while. Are you sure you want to continue?',
+            ok=False,
+            yes=True,
+            no=True
+        )
+        if not user_wishes_to_proceed:
+            sys.exit()
+
         libraries = {}
         libraries['views'] = {}
         libraries['family_types'] = {}
@@ -346,7 +358,8 @@ def _index_libraries():
                     _is_not_revision(filename)
                     and _is_not_old(filename)
                     and (
-                        _is_updated(os.path.join(root, file), last_updated)
+                        _is_new(os.path.join(root, file), last_updated)
+                        or _is_updated(os.path.join(root, file), last_updated)
                         or last_updated is None
                     )
                 ):
