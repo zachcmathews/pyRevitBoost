@@ -6,7 +6,7 @@ nav_order: 2
 ---
 
 # Open Cutsheet
-> **Launch the PDF specified in the parameter named Cutsheet.**
+Launch the PDF specified in the parameter named Cutsheet.
 
 ## Instructions
 1. Specify a parameter named Cutsheet of type URL and point it at a PDF.

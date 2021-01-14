@@ -6,7 +6,7 @@ nav_order: 0
 ---
 
 # Edit Keynotes
-> Collaborate on keynotes in real-time using Atom and the teletype-revit-linker
+Collaborate on keynotes in real-time using Atom and the teletype-revit-linker
 add-in.
 
 ## Instructions

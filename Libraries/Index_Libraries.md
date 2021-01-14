@@ -6,8 +6,8 @@ nav_order: 2
 ---
 
 # Index Libraries
-> **Index the libraries to be used in [Insert View](Insert_View.html) and 
-    [Insert Family Type](Insert_Family_Type.html).**
+Index the libraries to be used in [Insert View](Insert_View.html) and 
+[Insert Family Type](Insert_Family_Type.html).
 
 ## Instructions
 1. Specify your library locations using 
