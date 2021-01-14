@@ -1,11 +1,12 @@
 ---
 layout: default
 title: Edit Keynotes 
-nav_order: 2
+parent: Keynotes
+nav_order: 0 
 ---
 
 # Edit Keynotes
-Collaborate on keynotes in real-time using Atom and the teletype-revit-linker
+> Collaborate on keynotes in real-time using Atom and the teletype-revit-linker
 add-in.
 
 ## Instructions
