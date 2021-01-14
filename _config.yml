@@ -8,7 +8,7 @@ aux_links:
 aux_links_new_tab: true
 
 # Footer
-footer_content: 'Copyright &copy; 2020 Zachary Mathews. Distributed under a GPLv3 license.'
+footer_content: 'Copyright &copy; 2021 Zachary Mathews. Distributed under a GPLv3 license.'
 gh_edit_link: true
 gh_edit_link_text: 'Edit this page on GitHub.'
 gh_edit_repository: 'https://github.com/zachcmathews/pyRevitBoost'
