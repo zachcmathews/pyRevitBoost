@@ -14,7 +14,10 @@ from itertools import groupby
 
 from Autodesk.Revit.DB import ElementId, ElementTransformUtils
 from Autodesk.Revit.Exceptions import (ArgumentException,
-                                       InvalidOperationException)
+                                       CorruptModelException,
+                                       FileAccessException,
+                                       InvalidOperationException,
+                                       OperationCanceledException)
 
 import rpw
 from pyrevit import forms, script
@@ -392,22 +395,22 @@ def _index_libraries():
             if pb.cancelled:
                 sys.exit()
 
+            def _extract_views(doc):
+                return rpw.db.Collector(
+                    doc=doc,
+                    of_category='OST_Views'
+                )
+
             if rvt == rpw.revit.doc.PathName:
                 doc = rpw.revit.doc
-                is_active_doc = True
             else:
-                doc = app.OpenDocumentFile(rvt)
-                is_active_doc = False
-
-            views = rpw.db.Collector(
-                doc=doc,
-                of_category='OST_Views'
-            )
-
-            views_by_rvt[rvt] = [v.Name for v in views]
-
-            if not is_active_doc:
-                doc.Close(False)
+                try:
+                    doc = app.OpenDocumentFile(rvt)
+                except:
+                    pass
+                else:
+                    views_by_rvt[rvt] = [v.Name for v in _extract_views(doc)]
+                    doc.Close(False)
 
             count += 1
             pb.update_progress(count, total)
@@ -418,19 +421,21 @@ def _index_libraries():
             if pb.cancelled:
                 sys.exit()
 
+            def _extract_family_types(doc):
+                fm = doc.FamilyManager
+                return [t.Name for t in fm.Types]
+
             if rfa == rpw.revit.doc.PathName:
                 doc = rpw.revit.doc
-                is_active_doc = True
+                family_types_by_rfa[rfa] = _extract_family_types(doc)
             else:
-                doc = app.OpenDocumentFile(rfa)
-                is_active_doc = False
-
-            fm = doc.FamilyManager
-
-            family_types_by_rfa[rfa] = [t.Name for t in fm.Types]
-
-            if not is_active_doc:
-                doc.Close(False)
+                try:
+                    doc = app.OpenDocumentFile(rfa)
+                except:
+                    pass
+                else:
+                    family_types_by_rfa[rfa] = _extract_family_types(doc)
+                    doc.Close(False)
 
             count += 1
             pb.update_progress(count, total)

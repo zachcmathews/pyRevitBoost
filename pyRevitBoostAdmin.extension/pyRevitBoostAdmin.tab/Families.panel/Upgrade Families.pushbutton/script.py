@@ -4,7 +4,8 @@ import sys
 import re
 
 from Autodesk.Revit.Exceptions import (CorruptModelException,
-                                       FileAccessException)
+                                       FileAccessException,
+                                       OperationCanceledException)
 
 import rpw
 from pyrevit import forms
@@ -63,6 +64,10 @@ if __name__ == '__main__':
                 doc.Close(True)
             except (CorruptModelException, FileAccessException):
                 print("The following family is corrupt: " + path)
+            except OperationCanceledException:
+                print("The following family was skipped: " + path)
+            except:
+                print("Could not update the following family: " + path)
             finally:
                 cnt += 1
                 pb.update_progress(cnt, total)
