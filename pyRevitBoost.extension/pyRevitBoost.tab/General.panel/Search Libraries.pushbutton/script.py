@@ -9,15 +9,13 @@ from System.Collections.Generic import List
 import os
 import sys
 import re
+import codecs
 import json
 from itertools import groupby
 
 from Autodesk.Revit.DB import ElementId, ElementTransformUtils
 from Autodesk.Revit.Exceptions import (ArgumentException,
-                                       CorruptModelException,
-                                       FileAccessException,
-                                       InvalidOperationException,
-                                       OperationCanceledException)
+                                       InvalidOperationException)
 
 import rpw
 from pyrevit import forms, script
@@ -31,7 +29,7 @@ __author__ = 'Zachary Mathews'
 
 class TrieNode:
     def __init__(self):
-        self.children = [None] * (26 + 10)
+        self.children = [None] * (26 + 10 + 2)
         self.terminal_items = []
         self.items = []
 
@@ -48,6 +46,12 @@ class Trie:
             return ord(ch) - ord('a')
         elif ch.isdigit():
             return ord(ch) - ord('0') + 26
+        elif ch == '.':
+            return 36
+        elif ch == ',':
+            return 37
+        else:
+            return None
 
     def insert(self, key, item):
         p_crawl = self.root
@@ -55,10 +59,11 @@ class Trie:
             p_crawl.items.append(item)
 
             index = self._char_to_index(char)
-            if not p_crawl.children[index]:
+            if index and not p_crawl.children[index]:
                 p_crawl.children[index] = self.create_node()
 
-            p_crawl = p_crawl.children[index]
+            if index: 
+                p_crawl = p_crawl.children[index]
 
         p_crawl.terminal_items.append(item)
 
@@ -69,18 +74,19 @@ class Trie:
         # of its keywords that matches the search term
         for char in key:
             index = self._char_to_index(char)
-            if not p_crawl.children[index]:
+            if index and not p_crawl.children[index]:
                 break
 
-            for item in p_crawl.items:
-                item.score += 1
+            if index:
+                for item in p_crawl.items:
+                    item.score += 1
 
-            p_crawl = p_crawl.children[index]
+                p_crawl = p_crawl.children[index]
         else:
-            # Add an extra 2 points to each item with the whole search term
+            # Add an extra 3 points to each item with the whole search term
             # in its keywords list
             for item in p_crawl.terminal_items:
-                item.score += 5
+                item.score += 3 
 
 
 class ScoredTemplateListItem(forms.TemplateListItem):
@@ -103,16 +109,17 @@ class FuzzySelectFromList(forms.SelectFromList):
 
         self.index = dict()
         for item in self._get_active_ctx():
-            name = ''.join(
-                [c for c in item.name.lower() if c.isalnum() or c.isspace()]
-            )
-            terms = set([t for t in name.split()])
-
-            for term in terms:
+            for term in self._extract_terms(item.name):
                 if not term[0] in self.index.keys():
                     self.index[term[0]] = Trie()
 
                 self.index[term[0]].insert(term, item)
+
+    @staticmethod
+    def _extract_terms(phrase):
+        return set([
+            t for t in re.split(r'[-,_,\W]', phrase.lower()) if t
+        ])
 
     # Override
     def search_txt_changed(self, sender, args):
@@ -133,10 +140,10 @@ class FuzzySelectFromList(forms.SelectFromList):
         self.uncheckall_b.Content = 'Uncheck'
         self.toggleall_b.Content = 'Toggle'
 
-        # Display top 15 matches
+        # Display top 20 matches
         items = set(self._get_active_ctx())
         top_matches = []
-        while items is not None and len(top_matches) < 15:
+        while items and len(top_matches) < 20:
             top_match = max(items, key=lambda item: item.score)
             top_matches.append(top_match)
             items.remove(top_match)
@@ -150,10 +157,7 @@ class FuzzySelectFromList(forms.SelectFromList):
         for item in self._get_active_ctx():
             item.score = 0
 
-        search_phrase = ''.join(
-            [c for c in self._search.lower() if c.isalnum() or c.isspace()]
-        )
-        search_terms = set([term for term in search_phrase.split()])
+        search_terms = self._extract_terms(self._search)
         for term in search_terms:
             if term[0] in self.index.keys():
                 self.index[term[0]].search(term)
@@ -189,7 +193,9 @@ def _insert_view(db):
 
     res = FuzzySelectFromList.show(
         context=options,
-        multiselect=True
+        multiselect=True,
+        height=650,
+        width=750
     )
 
     if not res:
@@ -253,20 +259,25 @@ def _insert_family_type(db):
     class FamilyType(object):
         def __init__(self, path, name):
             self._path = path
+            self._family = os.path.splitext(path)[0].split('\\')[-1]
             self._name = name
-
-        @property
-        def name(self):
-            return self._name
 
         @property
         def path(self):
             return self._path
 
+        @property
+        def family(self):
+            return self._family
+
+        @property
+        def name(self):
+            return self._name
+
     class FamilyTypeOption(ScoredTemplateListItem):
         @property
         def name(self):
-            return '{}'.format(self.item.name)
+            return '{} : {}'.format(self.item.family, self.item.name)
 
     family_types = []
     for path, _family_types in db["family_types"].items():
@@ -279,7 +290,9 @@ def _insert_family_type(db):
 
     res = FuzzySelectFromList.show(
         context=options,
-        multiselect=True
+        multiselect=True,
+        height=650,
+        width=750
     )
 
     if not res:
@@ -328,13 +341,14 @@ def _index_libraries():
     last_updated = None
     if os.path.isfile(libraries_db):
         last_updated = os.path.getmtime(libraries_db)
-        with open(libraries_db, 'r') as f:
-            libraries = json.load(f)
+        libraries = _get_libraries()
 
-            if 'views' not in libraries.keys():
-                libraries['views'] = {}
-            if 'family_types' not in libraries.keys():
-                libraries['family_types'] = {}
+        if 'paths' not in libraries.keys():
+            libraries['paths'] = {}
+        if 'views' not in libraries.keys():
+            libraries['views'] = {}
+        if 'family_types' not in libraries.keys():
+            libraries['family_types'] = {}
     else:
         user_wishes_to_proceed = forms.alert(
             msg='This might take a while. Are you sure you want to continue?',
@@ -346,6 +360,7 @@ def _index_libraries():
             sys.exit()
 
         libraries = {}
+        libraries['paths'] = {}
         libraries['views'] = {}
         libraries['family_types'] = {}
 
@@ -361,7 +376,8 @@ def _index_libraries():
                     _is_not_revision(filename)
                     and _is_not_old(filename)
                     and (
-                        _is_new(os.path.join(root, file), last_updated)
+                        lib not in libraries['paths']
+                        or _is_new(os.path.join(root, file), last_updated)
                         or _is_updated(os.path.join(root, file), last_updated)
                         or last_updated is None
                     )
@@ -378,15 +394,26 @@ def _index_libraries():
         count = 0
         total = len(rvts) + len(rfas)
 
-        # Remove files that no longer exist from library
+        # Remove files that are no longer part of the library directories
+        # from the index
         old_views_by_rvt = libraries['views']
         for rvt in old_views_by_rvt.keys():
-            if not os.path.isfile(rvt):
+            if (
+                not os.path.isfile(rvt)
+                or not any([
+                    rvt.startswith(path) for path in libraries['paths']
+                ])
+            ):
                 del libraries['views'][rvt]
 
         old_family_types_by_rfa = libraries['family_types']
         for rfa in old_family_types_by_rfa.keys():
-            if not os.path.isfile(rfa):
+            if (
+                not os.path.isfile(rfa)
+                or not any([
+                    rfa.startswith(path) for path in libraries['paths']
+                ])
+            ):
                 del libraries['family_types'][rfa]
 
         # Gather information on changed rvt files
@@ -441,14 +468,16 @@ def _index_libraries():
             pb.update_progress(count, total)
 
         # Update library with new information
+        libraries['paths'] = libs
         libraries['views'].update(views_by_rvt)
         libraries['family_types'].update(family_types_by_rfa)
 
         # Write library index to file
         data = json.dumps({
+            "paths": libraries["paths"],
             "views": libraries['views'],
             "family_types": libraries['family_types']
-        })
+        }, ensure_ascii=False).encode('utf-8')
         with open(libraries_db, 'w+') as f:
             f.write(data)
 
@@ -468,7 +497,9 @@ def _get_libraries():
         )
 
     with open(libraries_db, 'r') as f:
-        libraries = json.load(f)
+        utf8_reader = codecs.getreader('utf-8')
+        libraries_s = utf8_reader(f).read()
+        libraries = json.loads(libraries_s)
 
     return libraries
 
