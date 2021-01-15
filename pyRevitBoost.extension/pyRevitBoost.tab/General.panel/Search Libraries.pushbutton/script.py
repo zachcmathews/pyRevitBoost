@@ -418,7 +418,7 @@ def _index_libraries():
             if pb.cancelled:
                 sys.exit()
 
-            if rvt == rpw.revit.doc.PathName:
+            if rfa == rpw.revit.doc.PathName:
                 doc = rpw.revit.doc
                 is_active_doc = True
             else:
