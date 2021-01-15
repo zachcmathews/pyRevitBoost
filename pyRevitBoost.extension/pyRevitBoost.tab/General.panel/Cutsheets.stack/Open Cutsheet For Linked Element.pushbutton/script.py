@@ -10,8 +10,8 @@ import rpw
 
 from pyrevit import forms
 
-__doc__ = 'Open cutsheet for selected family instances.'
-__title__ = 'Open\nCutsheet'
+__doc__ = 'Open cutsheet for selected family instances in linked document.'
+__title__ = 'Open Linked Cutsheet'
 __author__ = 'Zachary Mathews'
 
 if __name__ == '__main__':
