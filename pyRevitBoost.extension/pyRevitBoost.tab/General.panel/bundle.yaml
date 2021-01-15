@@ -3,7 +3,6 @@ layout:
     - Filter
     - YankParameters
     - Search Libraries
-    - Cutsheets
     - --------------
     - Keynotes
     - --------------
@@ -11,3 +10,4 @@ layout:
     - Orientation2
     - --------------
     - Families
+    - Cutsheets
