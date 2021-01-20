@@ -30,8 +30,8 @@ __author__ = 'Zachary Mathews'
 class TrieNode:
     def __init__(self):
         self.children = [None] * (26 + 10 + 2)
-        self.terminal_items = []
-        self.items = []
+        self.terminal_items = set()
+        self.items = set()
 
 
 class Trie:
@@ -55,38 +55,53 @@ class Trie:
 
     def insert(self, key, item):
         p_crawl = self.root
+        p_crawl.items.add(item)
+
+        # Remove the first character
+        key = list(key)
+        key.pop(0)
+
         for char in key:
-            p_crawl.items.append(item)
-
             index = self._char_to_index(char)
-            if index and not p_crawl.children[index]:
+            if not index:
+                continue    # skip any character we don't have an index for
+            elif not p_crawl.children[index]:
                 p_crawl.children[index] = self.create_node()
-
-            if index: 
+                p_crawl = p_crawl.children[index]
+            else:
                 p_crawl = p_crawl.children[index]
 
-        p_crawl.terminal_items.append(item)
+            p_crawl.items.add(item)
+
+        p_crawl.terminal_items.add(item)
 
     def search(self, key):
         p_crawl = self.root
+        for item in p_crawl.items:
+            item.score += 1
+
+        # Remove the first character
+        key = list(key)
+        key.pop(0)
 
         # Add a point to each item for each additional character in one
         # of its keywords that matches the search term
         for char in key:
             index = self._char_to_index(char)
-            if index and not p_crawl.children[index]:
+            if not index:
+                continue    # skip any character we don't have an index for
+            elif not p_crawl.children[index]:
                 break
-
-            if index:
+            else:
+                p_crawl = p_crawl.children[index]
                 for item in p_crawl.items:
                     item.score += 1
 
-                p_crawl = p_crawl.children[index]
         else:
-            # Add an extra 3 points to each item with the whole search term
+            # Add an extra 2 points to each item with the whole search term
             # in its keywords list
             for item in p_crawl.terminal_items:
-                item.score += 3 
+                item.score += 2
 
 
 class ScoredTemplateListItem(forms.TemplateListItem):
@@ -117,9 +132,12 @@ class FuzzySelectFromList(forms.SelectFromList):
 
     @staticmethod
     def _extract_terms(phrase):
-        return set([
-            t for t in re.split(r'[-,_,\W]', phrase.lower()) if t
-        ])
+        terms = set()
+        for t in re.split(r'[-,_,\W]', phrase.lower()):
+            if t:
+                terms.add(t)
+
+        return terms
 
     # Override
     def search_txt_changed(self, sender, args):
