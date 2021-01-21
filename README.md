@@ -1,6 +1,6 @@
 # pyRevitBoost
 Additional productivity tools for pyRevit. For an up-to-date list of 
-features [read the documentation.](http://www.zacharymathews.com/pyRevitBoost/)
+features [read the documentation.](https://zacharymathews.com/pyRevitBoost/)
 
 ## Installation
 1. Install [pyRevit](https://github.com/eirannejad/pyRevit/releases).
@@ -11,5 +11,5 @@ features [read the documentation.](http://www.zacharymathews.com/pyRevitBoost/)
     for adding a pyRevit extension manually.
 
 ## Documentation
-Please [read the documentation](http://www.zacharymathews.com/pyRevitBoost/)
-at [http://www.zacharymathews.com/pyRevitBoost/](http://www.zacharymathews.com/pyRevitBoost/).
+Please [read the documentation](https://zacharymathews.com/pyRevitBoost/)
+at [https://zacharymathews.com/pyRevitBoost/](https://zacharymathews.com/pyRevitBoost/).
