@@ -13,7 +13,7 @@ import codecs
 import json
 from itertools import groupby
 
-from Autodesk.Revit.DB import ElementId, ElementTransformUtils
+from Autodesk.Revit.DB import Element, ElementId, ElementTransformUtils, SketchPlane
 from Autodesk.Revit.Exceptions import (ArgumentException,
                                        InvalidOperationException)
 
@@ -235,31 +235,40 @@ def _insert_view(db):
             ).get_elements(wrapped=False)
 
             view_names = set([v.name for v in views])
-            views_to_copy = List[ElementId]([
-                v.Id for v in other_doc_views if v.Name in view_names
-            ])
+            views_to_copy = [
+                v for v in other_doc_views if v.Name in view_names
+            ]
 
-            with rpw.db.Transaction(
-                doc=doc, 
-                name='Load views from {}'.format(path)
-            ):
+            for view in views_to_copy:
                 try:
-                    copied_views = ElementTransformUtils.CopyElements(
-                        other_doc,
-                        views_to_copy,
-                        doc,
-                        None,
-                        None
-                    )
-                except (ArgumentException, InvalidOperationException):
-                    failed.extend(view_names)
+                    with rpw.db.Transaction('Copy View'):
+                        [copied_view_id] = ElementTransformUtils.CopyElements(
+                            other_doc,
+                            List[ElementId]([view.Id]),
+                            doc,
+                            None,
+                            None
+                        )
+                    with rpw.db.Transaction('Copy Elements from View'):
+                        elements_to_copy = rpw.db.Collector(
+                            doc=other_doc,
+                            owner_view=view,
+                            where=lambda e: type(e.unwrap()) is not Element
+                        ).get_elements(wrapped=False)
+                        ElementTransformUtils.CopyElements(
+                            view,
+                            List[ElementId]([e.Id for e in elements_to_copy]),
+                            doc.GetElement(copied_view_id),
+                            None,
+                            None
+                        )
+                except (ArgumentException, InvalidOperationException) as e:
+                    failed.append(view.Name)
                 else:
-                    for view in copied_views:
-                        view_names.remove(doc.GetElement(view).Name)
-                        succeeded.append(doc.GetElement(view).Name)
+                    view_names.remove(view.Name)
+                    succeeded.append(view.Name)
 
-                    failed.extend(view_names)
-
+            failed.extend(view_names)
             other_doc.Close(False)
 
     if failed:
