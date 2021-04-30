@@ -1,4 +1,5 @@
 # pylint: disable=import-error
+import sys
 import rpw
 from pyrevit import forms
 
@@ -23,14 +24,23 @@ if __name__ == '__main__':
         button_name='Rename Families'
     )
 
+    if not selected_families:
+        sys.exit()
+
     selected_option = forms.CommandSwitchWindow.show(
         ['Prepend', 'Append']
     )
+
+    if not selected_option:
+        sys.exit()
 
     text = forms.ask_for_string(
         default=doc.Title,
         prompt='{} text: '.format(selected_option)
     )
+
+    if not text:
+        sys.exit()
 
     with rpw.db.Transaction('Bulk Rename Families'):
         for family in selected_families:
