@@ -37,7 +37,7 @@ def is_inside_view(wire, view):
     from boostutils import is_inside_viewplan
     return (
         is_inside_viewplan(point=wire.GetVertex(0), view=view)
-        and is_inside_viewplan(point=wire.GetVertex(0), view=view)
+        and is_inside_viewplan(point=wire.GetVertex(1), view=view)
     )
 
 
