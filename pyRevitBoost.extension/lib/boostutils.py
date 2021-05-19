@@ -22,6 +22,7 @@ class memoize(object):
 
 
 def is_inside_bounding_box(point, box, include_z=True):
+    point = box.Transform.Inverse.OfVector(point)
     if include_z:
         return (
             box.Min.X <= point.X <= box.Max.X

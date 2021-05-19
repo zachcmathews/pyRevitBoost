@@ -190,6 +190,11 @@ def _get_element_meta(e, workset_table):
     family = e.get_Parameter(BuiltInParameter.ELEM_FAMILY_PARAM)
     _type = e.get_Parameter(BuiltInParameter.ELEM_TYPE_PARAM)
     workset_id = e.WorksetId
+    phase_created = e.get_Parameter(BuiltInParameter.PHASE_CREATED)
+    phase_demolished = e.get_Parameter(BuiltInParameter.PHASE_DEMOLISHED)
+
+    phase_created = 'None' if phase_created is None else phase_created
+    phase_demolished = 'None' if phase_demolished is None else phase_demolished
 
     if (
         category is None
@@ -204,7 +209,9 @@ def _get_element_meta(e, workset_table):
             'Category': category.Name,
             'Family': family.AsValueString(),
             'Type': _type.AsValueString(),
-            'Workset': workset_table.GetWorkset(workset_id).Name
+            'Workset': workset_table.GetWorkset(workset_id).Name,
+            'Phase Created': phase_created.AsValueString(),
+            'Phase Demolished': phase_demolished.AsValueString(),
         }
 
 
@@ -223,7 +230,10 @@ if __name__ == '__main__':
         if _get_element_meta(e)
     ]
 
-    parameters = ['Category', 'Family', 'Type', 'Workset']
+    parameters = [
+        'Category', 'Family', 'Type', 'Workset', 'Phase Created',
+        'Phase Demolished'
+    ]
     criteria = []
     for p in parameters:
         option_values = sorted(set(e.get(p, 'None') for e in elements))
