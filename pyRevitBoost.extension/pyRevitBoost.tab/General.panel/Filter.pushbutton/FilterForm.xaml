@@ -4,7 +4,7 @@
   Title="Filter"
   ShowInTaskbar="False"
   ResizeMode="CanResizeWithGrip"
-  Height="500" Width="400"
+  Height="500" Width="600"
   MinHeight="500" MinWidth="400"
   WindowStartupLocation="CenterScreen"
   HorizontalContentAlignment="Center"
