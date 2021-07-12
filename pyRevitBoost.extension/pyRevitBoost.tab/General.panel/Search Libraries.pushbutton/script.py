@@ -241,7 +241,7 @@ def _insert_view(db):
 
             for view in views_to_copy:
                 try:
-                    with rpw.db.Transaction('Copy View'):
+                    with rpw.db.Transaction('Copy View', doc=doc):
                         [copied_view_id] = ElementTransformUtils.CopyElements(
                             other_doc,
                             List[ElementId]([view.Id]),
@@ -249,7 +249,7 @@ def _insert_view(db):
                             None,
                             None
                         )
-                    with rpw.db.Transaction('Copy Elements from View'):
+                    with rpw.db.Transaction('Copy Elements from View', doc=doc):
                         elements_to_copy = rpw.db.Collector(
                             doc=other_doc,
                             owner_view=view,

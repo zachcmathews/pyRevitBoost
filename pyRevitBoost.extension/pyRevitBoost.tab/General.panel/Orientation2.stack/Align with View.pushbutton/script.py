@@ -31,7 +31,7 @@ if __name__ == '__main__':
     )
 
     failed = []
-    with rpw.db.Transaction('Align with View'):
+    with rpw.db.Transaction('Align with View', doc=doc):
         for el in elements:
             rot_x = el.GetTotalTransform()\
                       .OfVector(XYZ.BasisX)\

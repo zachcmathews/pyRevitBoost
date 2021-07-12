@@ -298,7 +298,7 @@ if __name__ == '__main__':
         title='Yanked {value} of {max_value} pairs',
         cancellable=True
     ) as pb:
-        with rpw.db.Transaction('Yank parameters'):
+        with rpw.db.Transaction('Yank parameters', doc=doc):
             for mapping, _pair in mapping_pairs:
                 if pb.cancelled:
                     break

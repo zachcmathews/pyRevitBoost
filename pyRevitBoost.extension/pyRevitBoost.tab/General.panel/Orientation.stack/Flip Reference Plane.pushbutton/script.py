@@ -67,10 +67,10 @@ if __name__ == '__main__':
                     tg.RollBack()
                     sys.exit()
 
-        with rpw.db.Transaction('Flip reference plane'):
+        with rpw.db.Transaction('Flip reference plane', doc=doc):
             rp.Flip()
 
-        with rpw.db.Transaction('Mirror elements back to original positions'):
+        with rpw.db.Transaction('Mirror elements back to original positions', doc=doc):
             for el_id, original_pos in hosted_elements:
                 el = doc.GetElement(el_id)
                 current_pos = el.Location.Point

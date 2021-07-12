@@ -134,7 +134,7 @@ with forms.ProgressBar(
     step=20,
     cancellable=True
 ) as pb:
-    with rpw.db.Transaction('CAD -> Revit') as t:
+    with rpw.db.Transaction('CAD -> Revit', doc=doc) as t:
         for block_name, blocks in blocks_grouped_by_name.items():
             if pb.cancelled:
                 break

@@ -54,7 +54,7 @@ if __name__ == '__main__':
             elements.extend(get_hosted_elements(host=host))
 
     failed = []
-    with rpw.db.Transaction('Match work plane normal'):
+    with rpw.db.Transaction('Match work plane normal', doc=doc):
         for el in elements:
             try:
                 el.IsWorkPlaneFlipped = False
