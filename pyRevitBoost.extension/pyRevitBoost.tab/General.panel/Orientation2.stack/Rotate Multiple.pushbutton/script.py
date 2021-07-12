@@ -23,7 +23,7 @@ if elements:
 		sys.exit()
 
 angle = (start-center).AngleTo(end-center)
-with rpw.db.Transaction("Rotate multiple elements"):
+with rpw.db.Transaction("Rotate multiple elements", doc=doc):
 	cnt = 0
 	max = len(elements)
 	with forms.ProgressBar(title='{value} of {max_value}') as pb:

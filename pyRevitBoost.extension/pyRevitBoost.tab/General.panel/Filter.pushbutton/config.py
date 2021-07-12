@@ -246,7 +246,7 @@ if __name__ == '__main__':
     import rpw
     uidoc = rpw.revit.uidoc
     doc = rpw.revit.doc
-    selection = rpw.ui.Selection()
+    selection = rpw.ui.Selection(uidoc=uidoc)
     _get_element_meta = partial(
         _get_element_meta,
         workset_table=doc.GetWorksetTable()

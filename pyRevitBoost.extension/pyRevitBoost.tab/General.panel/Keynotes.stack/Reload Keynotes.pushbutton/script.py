@@ -12,7 +12,7 @@ if __name__ == '__main__':
     doc = rpw.revit.doc
     keynote_table = KeynoteTable.GetKeynoteTable(doc)
 
-    with rpw.db.Transaction('Reload keynotes') as t:
+    with rpw.db.Transaction('Reload keynotes', doc=doc) as t:
         result = keynote_table.Reload(None)
         if not (
             ExternalResourceLoadStatus.Success == result

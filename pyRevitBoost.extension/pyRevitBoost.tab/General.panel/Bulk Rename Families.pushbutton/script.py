@@ -42,7 +42,7 @@ if __name__ == '__main__':
     if not text:
         sys.exit()
 
-    with rpw.db.Transaction('Bulk Rename Families'):
+    with rpw.db.Transaction('Bulk Rename Families', doc=doc):
         for family in selected_families:
             if selected_option == 'Prepend':
                 family.Name = text + family.Name

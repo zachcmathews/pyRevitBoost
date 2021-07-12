@@ -24,14 +24,14 @@ if __name__ == '__main__':
             exitscript=True
         )
 
-    selection = rpw.ui.Selection()
+    selection = rpw.ui.Selection(uidoc=uidoc)
     elements = (
         e for e in selection.get_elements(wrapped=False)
         if isinstance(e, FamilyInstance)
     )
 
     failed = []
-    with rpw.db.Transaction('Align with View'):
+    with rpw.db.Transaction('Align with View', doc=doc):
         for el in elements:
             rot_x = el.GetTotalTransform()\
                       .OfVector(XYZ.BasisX)\

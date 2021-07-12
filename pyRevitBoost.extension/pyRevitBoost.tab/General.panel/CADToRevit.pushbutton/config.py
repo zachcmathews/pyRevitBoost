@@ -42,7 +42,7 @@ def draw_block_origins():
     import_transform = cad_import.GetTotalTransform()
     blocks = get_blocks(cad_import)
 
-    with rpw.db.Transaction('Draw locations'):
+    with rpw.db.Transaction('Draw locations', doc=doc):
         for b in blocks:
             draw_circle(
               center=import_transform.Multiply(b.Transform).OfPoint(XYZ.Zero),

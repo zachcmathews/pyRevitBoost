@@ -279,7 +279,7 @@ if __name__ == '__main__':
     uidoc = rpw.revit.uidoc
     doc = rpw.revit.doc
     view = uidoc.ActiveView
-    selection = rpw.ui.Selection()
+    selection = rpw.ui.Selection(uidoc=uidoc)
 
     ceilings = selection.get_elements(wrapped=False)
     if not ceilings:
@@ -333,9 +333,9 @@ if __name__ == '__main__':
     max = len(ceilings)
     failed = []
     with forms.ProgressBar(title='{value} of {max_value}') as pb:
-        with rpw.db.TransactionGroup('Align ceilings with light fixtures'):
+        with rpw.db.TransactionGroup('Align ceilings with light fixtures', doc=doc):
 
-            with rpw.db.Transaction('Create representation of ceiling grids'):
+            with rpw.db.Transaction('Create representation of ceiling grids', doc=doc):
                 ceiling_grids, failed = get_ceiling_representation(
                     ceilings=ceilings,
                     view=view,
@@ -346,7 +346,7 @@ if __name__ == '__main__':
                 cnt += len(failed)
                 pb.update_progress(cnt, max)
 
-            with rpw.db.Transaction('Align representation with gridlines'):
+            with rpw.db.Transaction('Align representation with gridlines', doc=doc):
                 for ceiling, grid in ceiling_grids:
                     align_ceiling_representation_with_gridlines(
                         ceiling=ceiling,
@@ -355,7 +355,7 @@ if __name__ == '__main__':
                         doc=doc
                     )
 
-            with rpw.db.Transaction('Align gridlines with edges'):
+            with rpw.db.Transaction('Align gridlines with edges', doc=doc):
                 for ceiling, grid in ceiling_grids:
                     # Get fixtures under the current ceiling
                     hosted_fixtures = find_hosted_fixtures(
