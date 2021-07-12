@@ -279,7 +279,7 @@ if __name__ == '__main__':
     uidoc = rpw.revit.uidoc
     doc = rpw.revit.doc
     view = uidoc.ActiveView
-    selection = rpw.ui.Selection()
+    selection = rpw.ui.Selection(uidoc=uidoc)
 
     ceilings = selection.get_elements(wrapped=False)
     if not ceilings:

@@ -45,7 +45,7 @@ if __name__ == '__main__':
     uidoc = rpw.revit.uidoc
     doc = rpw.revit.doc
     view = uidoc.ActiveView
-    selection = rpw.ui.Selection()
+    selection = rpw.ui.Selection(uidoc=uidoc)
 
     # Filter wires that extend outside of view if cropped
     wires = set(
@@ -73,7 +73,7 @@ if __name__ == '__main__':
     cnt = 0
     max = len(wires)
     with forms.ProgressBar(title='{value} of {max_value}') as pb:
-        with rpw.db.Transaction('Reattach wires'):
+        with rpw.db.Transaction('Reattach wires', doc=doc):
             for wire in wires:
                 start = to_XY(wire.GetVertex(0))
                 end = to_XY(wire.GetVertex(wire.NumberOfVertices-1))

@@ -21,7 +21,8 @@ def get_hosted_elements(host):
 
 if __name__ == '__main__':
     doc = rpw.revit.doc
-    selection = rpw.ui.Selection()
+    uidoc = rpw.revit.uidoc
+    selection = rpw.ui.Selection(uidoc=uidoc)
     ref_planes = [
         e for e in selection.get_elements(wrapped=False)
         if type(e) == ReferencePlane

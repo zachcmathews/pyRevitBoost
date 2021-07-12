@@ -24,7 +24,7 @@ if __name__ == '__main__':
             exitscript=True
         )
 
-    selection = rpw.ui.Selection()
+    selection = rpw.ui.Selection(uidoc=uidoc)
     elements = (
         e for e in selection.get_elements(wrapped=False)
         if isinstance(e, FamilyInstance)

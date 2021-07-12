@@ -194,7 +194,7 @@ if __name__ == '__main__':
     view = uidoc.ActiveView
     current_phase = \
         view.get_Parameter(BuiltInParameter.VIEW_PHASE).AsElementId()
-    selection = rpw.ui.Selection()
+    selection = rpw.ui.Selection(uidoc=uidoc)
 
     script_config = script.get_config(
         section='pyRevitBoost.General.YankParameters'

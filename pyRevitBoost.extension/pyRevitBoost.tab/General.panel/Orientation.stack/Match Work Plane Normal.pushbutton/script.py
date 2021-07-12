@@ -25,9 +25,10 @@ def get_host_elements(elements):
 
 
 if __name__ == '__main__':
-    doc = rpw.doc
+    doc = rpw.revit.doc
+    uidoc = rpw.revit.uidoc
 
-    selection = rpw.ui.Selection()
+    selection = rpw.ui.Selection(uidoc=uidoc)
     selected = [e for e in selection.get_elements(wrapped=False)]
     host_elements = get_host_elements(selected)
 
