@@ -8,7 +8,8 @@ import math
 from System.Windows.Media import PointCollection, PolyBezierSegment
 from System.Windows.Input import MouseButtonState
 
-from Autodesk.Revit.DB import (BoundingBoxIsInsideFilter,
+from Autodesk.Revit.DB import (BoundingBoxIntersectsFilter,
+                               ElementId,
                                FilteredElementCollector,
                                IndependentTag,
                                LocationCurve,
@@ -117,7 +118,7 @@ def screenCoordsToXYZ(pt, windowRect, viewCorners, viewRight, viewUp):
 
 # Uses the curve's winding number around a point to determine
 # if the point is enclosed
-def isPointInCurve(pt, curvePts, minRotations=0.90):
+def isPointInCurve(pt, curvePts, minRotations=0.50):
     dThetas = []
     prevX = (curvePts[0] - pt).DotProduct(viewRight)
     prevY = (curvePts[0] - pt).DotProduct(viewUp)
@@ -135,6 +136,7 @@ def isPointInCurve(pt, curvePts, minRotations=0.90):
         prevY = y
 
     winding_num = sum(dThetas) / (2 * math.pi)
+    # print(sum(dThetas))
     return abs(winding_num) > minRotations
 
 
@@ -210,17 +212,25 @@ if __name__ == '__main__':
     outline.MaximumPoint += 1e32 * viewDir
 
     # Get all model elements within the bounding box for further testing
-    isInsideFilter = BoundingBoxIsInsideFilter(outline)
+    isInsideFilter = BoundingBoxIntersectsFilter(outline)
     modelElements = \
         FilteredElementCollector(doc, activeView.Id)\
         .WherePasses(isInsideFilter)\
         .ToElements()
 
     # Get all annotation elements within the view for further testing
-    annotationElements = \
-        FilteredElementCollector(doc, activeView.Id)\
-        .OwnedByView(activeView.Id)\
-        .ToElements()
+    # Annotation elements are owned by the parent of dependent views
+    parentId = activeView.GetPrimaryViewId()
+    if parentId != ElementId.InvalidElementId:
+        annotationElements = \
+            FilteredElementCollector(doc, activeView.Id)\
+            .OwnedByView(parentId)\
+            .ToElements()
+    else:
+        annotationElements = \
+            FilteredElementCollector(doc, activeView.Id)\
+            .OwnedByView(activeView.Id)\
+            .ToElements()
 
     # Exclude pinned elements if select pinned elements is off
     elements = list(modelElements)
