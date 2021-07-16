@@ -114,12 +114,6 @@ def screenCoordsToXYZ(pt, windowRect, viewCorners, viewRight, viewUp):
     return (viewLeft + vectFromLeft) + (viewTop + vectFromTop)
 
 
-def convertToPolarCoords(x, y):
-    r = math.sqrt(x**2 + y**2)
-    theta = math.arctan(y / x)
-    return r, theta
-
-
 # Uses the curve's winding number around a point to determine
 # if the point is enclosed
 def isPointInCurve(pt, curvePts, minRotations=0.90):
