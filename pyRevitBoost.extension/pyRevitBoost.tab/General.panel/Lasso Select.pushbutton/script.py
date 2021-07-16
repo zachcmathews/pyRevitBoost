@@ -207,13 +207,8 @@ if __name__ == '__main__':
 
     # Construct bounding box for preliminary filtering
     outline = Outline(pts[0], pts[0])
-    for pt in screenPts:
-        outline.AddPoint(
-            screenCoordsToXYZ(
-                pt, windowRect,
-                viewCorners, viewRight, viewUp
-            )
-        )
+    for pt in pts[1:]:
+        outline.AddPoint(pt)
 
     # Grow bounding box to ~ +/-infinity in view direction
     outline.MinimumPoint += -1e32 * viewDir
