@@ -13,7 +13,8 @@ from Autodesk.Revit.DB import (BoundingBoxIsInsideFilter,
                                IndependentTag,
                                LocationCurve,
                                LocationPoint,
-                               Outline)
+                               Outline,
+                               TextNote)
 from Autodesk.Revit.UI import SelectionUIOptions
 
 import rpw 
@@ -232,8 +233,8 @@ if __name__ == '__main__':
 
     # We have to check two points for curve based elements,
     # so we separate them from the point based elements.
-    # IndependentTag (tags, keynotes, etc) store their location
-    # in a different property
+    # IndependentTag (tags, keynotes, etc) and TextNotes store
+    # their location in a different property
     curveBasedElements = [
         el for el in elements
         if type(el.Location) == LocationCurve
@@ -246,6 +247,10 @@ if __name__ == '__main__':
     independentTagElements = [
         el for el in elements
         if type(el) == IndependentTag
+    ]
+    textNoteElements = [
+        el for el in elements
+        if type(el) == TextNote
     ]
 
     # Now check if inside of curve using winding number algorithm
@@ -262,8 +267,13 @@ if __name__ == '__main__':
         el for el in independentTagElements
         if isPointInCurve(pt=el.TagHeadPosition, curvePts=pts)
     ]
+    textNoteElements = [
+        el for el in textNoteElements
+        if isPointInCurve(pt=el.Coord, curvePts=pts)
+    ]
 
     selection.add(curveBasedElements)
     selection.add(pointBasedElements)
     selection.add(independentTagElements)
+    selection.add(textNoteElements)
     selection.update()
