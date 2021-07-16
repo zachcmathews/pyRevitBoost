@@ -237,6 +237,7 @@ if __name__ == '__main__':
     curveBasedElements = [
         el for el in elements
         if type(el.Location) == LocationCurve
+        and el.Location.Curve.IsBound
     ]
     pointBasedElements = [
         el for el in elements
