@@ -15,7 +15,8 @@ from Autodesk.Revit.DB import (BoundingBoxIntersectsFilter,
                                LocationCurve,
                                LocationPoint,
                                Outline,
-                               TextNote)
+                               TextNote,
+                               XYZ)
 from Autodesk.Revit.UI import SelectionUIOptions
 
 import rpw 
@@ -27,6 +28,10 @@ __author__ = 'Zachary Mathews'
 
 
 class Form(forms.WPFWindow):
+    """
+    Draws the window and curve and keeps track of the user's movement through\
+    a series of window coordinates to be returned to the caller.
+    """
     def __init__(self, top, left, bottom, right):
         forms.WPFWindow.__init__(self, 'form.xaml')
         self.Top = top
@@ -89,7 +94,26 @@ class Form(forms.WPFWindow):
         return self._pathPts
 
 
-def screenCoordsToXYZ(pt, windowRect, viewCorners, viewRight, viewUp):
+def windowCoordsToModelCoords(pt, windowRect, viewCorners, viewRight, viewUp):
+    """
+    Convert the given window coordinates into model coordinates.
+
+    Arguments:
+        pt (`System.Windows.Point`) : The window coordinates to convert to\
+            model coordinates.
+        windowRect (`Autodesk.Revit.DB.Rectangle`) : The Rectangle containing\
+            the coordinates of the view's drawing area in screen coordinates.
+        viewCorners (`IList<Autodesk.Revit.DB.XYZ>`) : Two corners of the\
+            view's rectangle in model coordinates.
+        viewRight (`Autodesk.Revit.DB.XYZ`) : The unit vector towards the\
+            right side of the screen in model space.
+        viewUp (`Autodesk.Revit.DB.XYZ`) : The unit vector towards the top of\
+            the screen in model space.
+
+    Returns:
+        modelPt (`Autodesk.Revit.DB.XYZ`) : The model coordinates\
+            corresponding to the given window coordinates.
+    """
     windowWidth = windowRect.Right - windowRect.Left
     windowHeight = windowRect.Bottom - windowRect.Top
 
@@ -116,27 +140,44 @@ def screenCoordsToXYZ(pt, windowRect, viewCorners, viewRight, viewUp):
     return (viewLeft + vectFromLeft) + (viewTop + vectFromTop)
 
 
-# Uses the curve's winding number around a point to determine
-# if the point is enclosed
-def isPointInCurve(pt, curvePts, minRotations=0.50):
+def isPointInCurve(pt, curvePts, viewRight, viewUp, minRotations=0.50):
+    """
+    Determine if a model point is inside of a curve.
+
+    Arguments:
+        pt (`Autodesk.Revit.DB.XYZ`) : The model coordinates to test.
+        curvePts (`list<Autodesk.Revit.DB.XYZ>`) : The model coordinates of\
+            points defining the curve.
+        minRotations (`Number`) : The minimum number of revolutions the curve\
+            must make around the point to pass.
+
+    Returns:
+        isPointInCurve (`Boolean`) : True if the curve performs at least\
+            minRotations around the point. Otherwise, False.
+
+    Notes:
+        Uses the curve's winding number around a point to determine if it\
+            is enclosed.
+    """
     dThetas = []
     prevX = (curvePts[0] - pt).DotProduct(viewRight)
     prevY = (curvePts[0] - pt).DotProduct(viewUp)
     for cPt in curvePts[1:]:
-        x = (cPt - pt).DotProduct(viewRight)
+        # Project the vector from the pt to the curve onto the viewing plane
+        v = cPt - pt
+        x = v.DotProduct(viewRight)
+        y = v.DotProduct(viewUp)
+
         dx = x - prevX
-
-        y = (cPt - pt).DotProduct(viewUp)
         dy = y - prevY
-
         dThetas.append(
             ((x * dy) - (y * dx)) / (x**2 + y**2)
         )
+
         prevX = x
         prevY = y
 
     winding_num = sum(dThetas) / (2 * math.pi)
-    # print(sum(dThetas))
     return abs(winding_num) > minRotations
 
 
@@ -195,21 +236,25 @@ if __name__ == '__main__':
     viewUp = activeView.UpDirection
     viewCorners = activeUIView.GetZoomCorners()
 
-    pts = [
-        screenCoordsToXYZ(
+    modelPts = [
+        windowCoordsToModelCoords(
             pt, windowRect,
             viewCorners, viewRight, viewUp
         ) for pt in screenPts
     ]
 
     # Construct bounding box for preliminary filtering
-    outline = Outline(pts[0], pts[0])
-    for pt in pts[1:]:
+    outline = Outline(modelPts[0], modelPts[0])
+    for pt in modelPts[1:]:
         outline.AddPoint(pt)
 
     # Grow bounding box to ~ +/-infinity in view direction
-    outline.MinimumPoint += -1e32 * viewDir
-    outline.MaximumPoint += 1e32 * viewDir
+    if viewDir.DotProduct(XYZ(1, 1, 1)) < 0:
+        outline.MinimumPoint += 1e10 * viewDir
+        outline.MaximumPoint += -1e10 * viewDir
+    else:
+        outline.MinimumPoint += -1e10 * viewDir
+        outline.MaximumPoint += 1e10 * viewDir
 
     # Get all model elements within the bounding box for further testing
     isInsideFilter = BoundingBoxIntersectsFilter(outline)
@@ -243,8 +288,6 @@ if __name__ == '__main__':
 
     # We have to check two points for curve based elements,
     # so we separate them from the point based elements.
-    # IndependentTag (tags, keynotes, etc) and TextNotes store
-    # their location in a different property
     curveBasedElements = [
         el for el in elements
         if type(el.Location) == LocationCurve
@@ -254,6 +297,9 @@ if __name__ == '__main__':
         el for el in elements
         if type(el.Location) == LocationPoint
     ]
+
+    # IndependentTag (tags, keynotes, etc) and TextNotes store
+    # their location in a different property
     independentTagElements = [
         el for el in elements
         if type(el) == IndependentTag
@@ -266,20 +312,35 @@ if __name__ == '__main__':
     # Now check if inside of curve using winding number algorithm
     curveBasedElements = [
         el for el in curveBasedElements
-        if isPointInCurve(pt=el.Location.Curve.GetEndPoint(0), curvePts=pts)
-        and isPointInCurve(pt=el.Location.Curve.GetEndPoint(1), curvePts=pts)
+        if isPointInCurve(pt=el.Location.Curve.GetEndPoint(0),
+                          viewRight=viewRight,
+                          viewUp=viewUp,
+                          curvePts=modelPts)
+        and isPointInCurve(pt=el.Location.Curve.GetEndPoint(1),
+                           viewRight=viewRight,
+                           viewUp=viewUp,
+                           curvePts=modelPts)
     ]
     pointBasedElements = [
         el for el in pointBasedElements
-        if isPointInCurve(pt=el.Location.Point, curvePts=pts)
+        if isPointInCurve(pt=el.Location.Point,
+                          viewRight=viewRight,
+                          viewUp=viewUp,
+                          curvePts=modelPts)
     ]
     independentTagElements = [
         el for el in independentTagElements
-        if isPointInCurve(pt=el.TagHeadPosition, curvePts=pts)
+        if isPointInCurve(pt=el.TagHeadPosition,
+                          viewRight=viewRight,
+                          viewUp=viewUp,
+                          curvePts=modelPts)
     ]
     textNoteElements = [
         el for el in textNoteElements
-        if isPointInCurve(pt=el.Coord, curvePts=pts)
+        if isPointInCurve(pt=el.Coord,
+                          viewRight=viewRight,
+                          viewUp=viewUp,
+                          curvePts=modelPts)
     ]
 
     selection.add(curveBasedElements)
