@@ -70,13 +70,13 @@ def align_grid_with_edges(grid, edges, doc):
         )
 
     def _is_almost_evenly_divisible(numerator, denominator):
-        is_divisible = abs(numerator-denominator) < 1e-9
+        is_divisible = abs(numerator - denominator) < 1e-9
         while (
             not is_divisible
             and numerator > denominator
         ):
             numerator /= denominator
-            is_divisible = abs(numerator-denominator) < 1e-9
+            is_divisible = abs(numerator - denominator) < 1e-9
 
         return is_divisible
 
@@ -165,7 +165,7 @@ def get_ceiling_representation(ceilings, view, doc):
         try:
             material = doc.GetElement(face.MaterialElementId)
             pattern = doc \
-                .GetElement(material.SurfacePatternId) \
+                .GetElement(material.SurfaceForegroundPatternId) \
                 .GetFillPattern()
         except (AttributeError, InvalidOperationException):
             failed.append(ceiling)
@@ -176,7 +176,7 @@ def get_ceiling_representation(ceilings, view, doc):
             # 1.1. Build stable references to hatch lines
             hatch_line_refs = ReferenceArray()
             for j in range(2):
-                hatch_line_index = (i+1) + (j*pattern.GridCount*2)
+                hatch_line_index = (i + 1) + (j * pattern.GridCount * 2)
                 hatch_line_stable_ref = '{0}/{1}'.format(
                     stable_ref,
                     hatch_line_index
@@ -238,17 +238,41 @@ def get_ceiling_representation(ceilings, view, doc):
 
 
 def get_fixture_edges(fixture, view):
-    from Autodesk.Revit.DB import Line, Options
+    from Autodesk.Revit.DB import Line, Options, Outline, XYZ
 
     options = Options()
     options.View = view
     [geom_inst] = fixture.get_Geometry(options)
-    fixture_edges = [
+    lines = [
         o for o in geom_inst.GetInstanceGeometry()
         if type(o) == Line
     ]
 
-    return fixture_edges
+    bb = Outline(lines[0].GetEndPoint(0), lines[0].GetEndPoint(1))
+    for line in lines[1:]:
+        bb.AddPoint(line.GetEndPoint(0))
+        bb.AddPoint(line.GetEndPoint(1))
+
+    edges = [
+        Line.CreateBound(
+            bb.MinimumPoint,
+            XYZ(bb.MinimumPoint.X, bb.MaximumPoint.Y, 0)
+        ),
+        Line.CreateBound(
+            XYZ(bb.MinimumPoint.X, bb.MaximumPoint.Y, 0),
+            XYZ(bb.MaximumPoint.X, bb.MaximumPoint.Y, 0)
+        ),
+        Line.CreateBound(
+            XYZ(bb.MaximumPoint.X, bb.MaximumPoint.Y, 0),
+            XYZ(bb.MaximumPoint.X, bb.MinimumPoint.Y, 0)
+        ),
+        Line.CreateBound(
+            XYZ(bb.MaximumPoint.X, bb.MinimumPoint.Y, 0),
+            bb.MinimumPoint
+        )
+    ]
+
+    return edges
 
 
 def get_fixtures_of_category(category, doc):
@@ -333,9 +357,11 @@ if __name__ == '__main__':
     max = len(ceilings)
     failed = []
     with forms.ProgressBar(title='{value} of {max_value}') as pb:
-        with rpw.db.TransactionGroup('Align ceilings with light fixtures', doc=doc):
+        with rpw.db.TransactionGroup('Align ceilings with light fixtures',
+                                     doc=doc):
 
-            with rpw.db.Transaction('Create representation of ceiling grids', doc=doc):
+            with rpw.db.Transaction('Create representation of ceiling grids',
+                                    doc=doc):
                 ceiling_grids, failed = get_ceiling_representation(
                     ceilings=ceilings,
                     view=view,
@@ -346,7 +372,8 @@ if __name__ == '__main__':
                 cnt += len(failed)
                 pb.update_progress(cnt, max)
 
-            with rpw.db.Transaction('Align representation with gridlines', doc=doc):
+            with rpw.db.Transaction('Align representation with gridlines',
+                                    doc=doc):
                 for ceiling, grid in ceiling_grids:
                     align_ceiling_representation_with_gridlines(
                         ceiling=ceiling,
