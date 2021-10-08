@@ -15,7 +15,7 @@ from boostutils import memoize
 
 __doc__ = 'Update parameters for all families in a directory.'
 __author__ = 'Zachary Mathews'
-__context__ = 'zerodoc'
+__context__ = 'zero-doc'
 
 uiapp = rpw.revit.uiapp
 app = uiapp.Application
