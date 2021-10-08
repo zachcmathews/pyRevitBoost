@@ -3,7 +3,7 @@ from collections import OrderedDict
 
 __doc__ = 'Extract parameters from all families in a directory.'
 __author__ = 'Zachary Mathews'
-__context__ = 'zerodoc'
+__context__ = 'zero-doc'
 
 
 def write_tsv(tsv, lines):
