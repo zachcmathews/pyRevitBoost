@@ -23,7 +23,11 @@
         <RowDefinition Height="0.075*" />
       </Grid.RowDefinitions>
 
-      <TabControl Name="tabs" Grid.Row="0" Grid.ColumnSpan="5" SelectionChanged="on_tab_change" ItemsSource="{Binding}">
+      <TabControl
+        Name="tabs"
+        Grid.Row="0" Grid.ColumnSpan="5"
+        SelectionChanged="on_tab_change"
+        ItemsSource="{Binding}">
         <TabControl.ItemTemplate>
           <DataTemplate>
             <TextBlock Text="{Binding Path=title}" />
@@ -31,9 +35,12 @@
         </TabControl.ItemTemplate>
         <TabControl.ContentTemplate>
           <DataTemplate>
-            <ListBox ItemsSource="{Binding Path=criterion.options}" SelectionMode="Multiple">
+            <ListBox
+              ItemsSource="{Binding Path=criterion.options}"
+              SelectionMode="Multiple">
               <ListBox.ItemContainerStyle>
                 <Style TargetType="ListBoxItem">
+                  <Setter Property="HorizontalContentAlignment" Value="Stretch" />
                   <Setter Property="Focusable" Value="False" />
                   <Style.Triggers>
                     <DataTrigger Binding="{Binding Path=available}" Value="False">
@@ -47,11 +54,25 @@
               </ListBox.ItemContainerStyle>
               <ListBox.ItemTemplate>
                 <DataTemplate>
-                  <CheckBox 
-                    Grid.ColumnSpan="4"
-                    IsChecked="{Binding Path=checked, Mode=TwoWay}"
-                    Content="{Binding Path=value}"
-                  />
+                  <Grid>
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="*" />
+                      <ColumnDefinition Width="50" />
+                    </Grid.ColumnDefinitions>
+                    <CheckBox 
+                      Grid.Column="0"
+                      HorizontalAlignment="Left"
+                      VerticalAlignment="Center"
+                      IsChecked="{Binding Path=checked, Mode=TwoWay}"
+                      Content="{Binding Path=value}"
+                    />
+                    <TextBlock
+                      Grid.Column="1"
+                      HorizontalAlignment="Right"
+                      VerticalAlignment="Center"
+                      Text="{Binding Path=quantity}"
+                    />
+                  </Grid>
                 </DataTemplate>
               </ListBox.ItemTemplate>
             </ListBox>
