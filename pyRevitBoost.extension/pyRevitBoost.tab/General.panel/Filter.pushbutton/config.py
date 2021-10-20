@@ -6,8 +6,13 @@ from pyrevit import forms
 
 
 class Option(INotifyPropertyChanged):
-    def __init__(self, value, checked=False, available=True):
+    def __init__(
+        self, value, _filter, criterion,
+        checked=False, available=True
+    ):
         self._value = value
+        self._filter = _filter
+        self._criterion = criterion
         self._checked = checked
         self._available = available
         self._property_changed_handlers = []
@@ -31,6 +36,12 @@ class Option(INotifyPropertyChanged):
     def value(self, value):
         self._value = value
         self._raise_property_changed('value')
+
+    @property
+    def quantity(self):
+        return len(
+            self._filter.passes(criterion=self._criterion, value=self._value)
+        )
 
     @property
     def checked(self):
@@ -71,18 +82,38 @@ class Criterion(object):
 
 class Filter(object):
     def __init__(self, criteria, elements):
-        self.criteria = criteria
         self._elements = elements
         self._filtered = elements
+
+        self._criteria = []
+        for c in criteria:
+            option_values = sorted(set(e.get(c, 'None') for e in elements))
+            self._criteria.append(Criterion(
+                name=c,
+                options=[
+                    Option(v, _filter=self, criterion=c)
+                    for v in option_values
+                ]
+            ))
+
+    @property
+    def criteria(self):
+        return self._criteria
 
     @property
     def results(self):
         return self._filtered
 
+    def passes(self, criterion, value):
+        return [
+            e for e in self._filtered
+            if e.get(criterion, 'None') == value
+        ]
+
     def apply(self):
         filtered = []
         for el in self._elements:
-            for criterion in self.criteria:
+            for criterion in self._criteria:
                 if not criterion.passes(el):
                     break
             else:
@@ -97,14 +128,14 @@ class Filter(object):
         self._recompute_availability()
 
     def clear_all(self):
-        for criterion in self.criteria:
+        for criterion in self._criteria:
             criterion.clear()
 
         self._filtered = self._elements
         self._recompute_availability()
 
     def _recompute_availability(self):
-        for criterion in self.criteria:
+        for criterion in self._criteria:
             for option in criterion.options:
                 if not any(
                     e.get(criterion.name, 'None') == option.value
@@ -267,14 +298,7 @@ if __name__ == '__main__':
         import sys
         sys.exit()
 
-    criteria = []
-    for p in parameters:
-        option_values = sorted(set(e.get(p, 'None') for e in elements))
-        criteria.append(Criterion(
-            name=p,
-            options=[Option(v) for v in option_values]
-        ))
-
+    criteria = parameters
     if elements:
         _filter = Filter(criteria, elements)
 
