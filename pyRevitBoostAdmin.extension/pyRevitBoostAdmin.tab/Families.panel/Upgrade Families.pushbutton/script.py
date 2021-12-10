@@ -12,7 +12,7 @@ from pyrevit import forms
 
 __doc__ = 'Upgrade all families in a directory to the current Revit version.'
 __author__ = 'Zachary Mathews'
-__context__ = 'zerodoc'
+__context__ = 'zero-doc'
 
 uiapp = rpw.revit.uiapp
 app = uiapp.Application
