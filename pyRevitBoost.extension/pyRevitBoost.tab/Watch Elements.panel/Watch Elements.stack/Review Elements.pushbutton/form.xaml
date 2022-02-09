@@ -1,0 +1,105 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:scm="clr-namespace:System.ComponentModel;assembly=WindowsBase"
+        SizeToContent="Width"
+        ResizeMode="NoResize"
+        Title="Watch Elements">
+    <Window.Resources>
+        <Style TargetType="TextBlock">
+            <Setter Property="Padding" Value="10,5,10,5" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="HorizontalAlignment" Value="Left" />
+        </Style>
+        <Style x:Key="ColumnHeader" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+        <Style TargetType="Button">
+            <Setter Property="Padding" Value="5" />
+            <Setter Property="Margin" Value="5" />
+        </Style>
+    </Window.Resources>
+    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+        <Grid 
+            Grid.IsSharedSizeScope="True"
+            Background="LightGray">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="200" SharedSizeGroup="Category" />
+                <ColumnDefinition Width="200" SharedSizeGroup="Family" />
+                <ColumnDefinition Width="200" SharedSizeGroup="Type" />
+                <ColumnDefinition Width="300" SharedSizeGroup="Parameter" />
+                <ColumnDefinition Width="300" SharedSizeGroup="PreviousValue" />
+                <ColumnDefinition Width="300" SharedSizeGroup="Value" />
+                <ColumnDefinition Width="200" SharedSizeGroup="Reconcile" />
+                <ColumnDefinition Width="200" SharedSizeGroup="SelectInRevit" />
+                <ColumnDefinition Width="18" />
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Style="{StaticResource ColumnHeader}" Grid.Row="0" Grid.Column="0" Text="Category" />
+            <TextBlock Style="{StaticResource ColumnHeader}" Grid.Row="0" Grid.Column="1" Text="Family" />
+            <TextBlock Style="{StaticResource ColumnHeader}" Grid.Row="0" Grid.Column="2" Text="Type" />
+            <TextBlock Style="{StaticResource ColumnHeader}" Grid.Row="0" Grid.Column="3" Text="Parameter" />
+            <TextBlock Style="{StaticResource ColumnHeader}" Grid.Row="0" Grid.Column="4" Text="Previous Value" />
+            <TextBlock Style="{StaticResource ColumnHeader}" Grid.Row="0" Grid.Column="5" Text="New Value" />
+
+            <ScrollViewer
+            Grid.Row="1"
+            Grid.Column="0" Grid.ColumnSpan="9"
+            VerticalScrollBarVisibility="Visible"
+            HorizontalScrollBarVisibility="Auto"
+            Background="White">
+                <ItemsControl 
+                x:Name="table"
+                ItemsSource="{Binding}"> 
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Name="border" BorderBrush="LightGray" BorderThickness="0 0 0 1">
+                                <Grid x:Name="grid">
+                                    <Grid.Resources>
+                                        <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                                            <Setter Property="TextWrapping" Value="Wrap" />
+                                        </Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}" />
+                                    </Grid.Resources>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition SharedSizeGroup="Category" />
+                                        <ColumnDefinition SharedSizeGroup="Family" />
+                                        <ColumnDefinition SharedSizeGroup="Type" />
+                                        <ColumnDefinition SharedSizeGroup="Parameter" />
+                                        <ColumnDefinition SharedSizeGroup="PreviousValue" />
+                                        <ColumnDefinition SharedSizeGroup="Value" />
+                                        <ColumnDefinition SharedSizeGroup="Reconcile" />
+                                        <ColumnDefinition SharedSizeGroup="SelectInRevit" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="{Binding Category}" />
+                                    <TextBlock Grid.Column="1" Text="{Binding Family}" />
+                                    <TextBlock Grid.Column="2" Text="{Binding Type}" />
+                                    <TextBlock Grid.Column="3" Text="{Binding Parameter}" />
+                                    <TextBlock Grid.Column="4" Text="{Binding PreviousValue, Mode=OneWay}" />
+                                    <TextBlock Grid.Column="5" Text="{Binding Value}" />
+                                    <Button x:Name="reconcile" Grid.Column="6" Tag="{Binding}" Click="reconcile" Visibility="Hidden">Reconcile</Button>
+                                    <Button x:Name="select_in_revit" Grid.Column="7" Tag="{Binding Element}" Click="select_in_revit">Show in Revit</Button>
+                                </Grid>
+                            </Border>
+                            <DataTemplate.Triggers>
+                                <DataTrigger Binding="{Binding NeedsReconciliation}" Value="True">
+                                    <Setter TargetName="grid" Property="Background" Value="#CCCB4154" />
+                                    <Setter TargetName="reconcile" Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding Value}" Value="[[ DELETED ]]">
+                                    <Setter TargetName="grid" Property="Background" Value="#CCCB4154" />
+                                    <Setter TargetName="select_in_revit" Property="Visibility" Value="Hidden" />
+                                    <Setter TargetName="reconcile" Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </DataTemplate.Triggers>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Grid>
+    </ScrollViewer>
+</Window>

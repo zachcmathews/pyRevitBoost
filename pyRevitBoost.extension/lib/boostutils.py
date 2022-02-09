@@ -1,4 +1,49 @@
 # pylint: disable=import-error
+from System.ComponentModel import INotifyPropertyChanged, PropertyChangedEventArgs
+import pyevent
+
+
+class NotifyPropertyChangedBase(INotifyPropertyChanged):
+    PropertyChanged = None
+
+    def __init__(self):
+        self.PropertyChanged, self._propertyChangedCaller = \
+            pyevent.make_event()
+
+    def add_PropertyChanged(self, value):
+        self.PropertyChanged += value
+
+    def remove_PropertyChanged(self, value):
+        self.PropertyChanged -= value
+
+    def OnPropertyChanged(self, property_name):
+        if self.PropertyChanged is not None:
+            self._propertyChangedCaller(
+                self, PropertyChangedEventArgs(property_name))
+
+
+class notify_property(property):
+    def __init__(self, getter):
+        def newgetter(slf):
+            try:
+                return getter(slf)
+            except AttributeError:
+                return None
+        super(notify_property, self).__init__(newgetter)
+
+    def setter(self, setter):
+        def newsetter(slf, value):
+            oldvalue = self.fget(slf)
+            if oldvalue != value:
+                setter(slf, value)
+                slf.OnPropertyChanged(setter.__name__)
+
+        return property(
+            fget=self.fget,
+            fset=newsetter,
+            fdel=self.fdel,
+            doc=self.__doc__)
+
 
 class memoize(object):
     def __init__(self, func):
