@@ -36,6 +36,8 @@ class AddForm(forms.WPFWindow):
         links = collector.OfClass(RevitLinkInstance).ToElements()
         self._modelsMap = dict()
         for m in links:
+            if not m.GetLinkDocument():
+                continue
             self._modelsMap[m.GetLinkDocument().Title] = m.UniqueId
 
         supportedCategoryNames = [
