@@ -331,7 +331,16 @@ if __name__ == '__main__':
         doc=doc
     ).showDialog()
     for item in added:
-        db['config'].append(item)
+        for existing_item in db['config']:
+            if (
+                item.get('model') == existing_item.get('model')
+                and item.get('parameter') == existing_item.get('parameter')
+                and item.get('category') == existing_item.get('category')
+                and item.get('family') == existing_item.get('family')
+            ):
+                break
+        else:
+            db['config'].append(item)
 
     if not added:
         sys.exit()

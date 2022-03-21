@@ -57,9 +57,9 @@ def readDatabase(dbPath):
 class WatchedItem(NotifyPropertyChangedBase):
     def __init__(
         self,
-        parameter,
-        previousValue,
-        value,
+        parameter=None,
+        previousValue=None,
+        value=None,
         element=None,
         id=None,
         category=None,
@@ -438,8 +438,8 @@ if __name__ == '__main__':
             family=item.get('family'),
             type=item.get('type'),
             parameter=item.get('parameter'),
-            previous_value=item.get('previous_value'),
-            value='[[ DELETED ]]' 
+            previousValue=item.get('previous_value'),
+            value='[[ DELETED ]]'
         ))
 
     # Show form
