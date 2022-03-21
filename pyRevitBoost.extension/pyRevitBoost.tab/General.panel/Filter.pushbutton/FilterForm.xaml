@@ -4,86 +4,115 @@
   Title="Filter"
   ShowInTaskbar="False"
   ResizeMode="CanResizeWithGrip"
-  Height="500" Width="600"
-  MinHeight="500" MinWidth="400"
+  Height="500" Width="500"
+  MinHeight="500" MinWidth="500"
   WindowStartupLocation="CenterScreen"
   HorizontalContentAlignment="Center"
 >
+  <Window.Resources>
+    <Style TargetType="Button">
+      <Setter Property="Margin" Value="4" />
+      <Setter Property="Padding" Value="5" />
+    </Style>
+  </Window.Resources>
 
-    <Grid>
-      <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="*" />
-        <ColumnDefinition Width="*" />
-        <ColumnDefinition Width="*" />
-        <ColumnDefinition Width="*" />
-        <ColumnDefinition Width="*" />
-      </Grid.ColumnDefinitions>
-      <Grid.RowDefinitions>
-        <RowDefinition Height="0.925*" />
-        <RowDefinition Height="0.075*" />
-      </Grid.RowDefinitions>
+  <Grid>
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="*" />
+      <ColumnDefinition Width="*" />
+      <ColumnDefinition Width="*" />
+      <ColumnDefinition Width="*" />
+      <ColumnDefinition Width="*" />
+    </Grid.ColumnDefinitions>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="*" />
+      <RowDefinition Height="Auto" />
+    </Grid.RowDefinitions>
 
-      <TabControl
-        Name="tabs"
-        Grid.Row="0" Grid.ColumnSpan="5"
-        SelectionChanged="on_tab_change"
-        ItemsSource="{Binding}">
-        <TabControl.ItemTemplate>
-          <DataTemplate>
-            <TextBlock Text="{Binding Path=title}" />
-          </DataTemplate>
-        </TabControl.ItemTemplate>
-        <TabControl.ContentTemplate>
-          <DataTemplate>
-            <ListBox
-              ItemsSource="{Binding Path=criterion.options}"
-              SelectionMode="Multiple">
-              <ListBox.ItemContainerStyle>
-                <Style TargetType="ListBoxItem">
-                  <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                  <Setter Property="Focusable" Value="False" />
-                  <Style.Triggers>
-                    <DataTrigger Binding="{Binding Path=available}" Value="False">
-                      <Setter Property="Visibility" Value="Collapsed" />
-                    </DataTrigger>
-                    <DataTrigger Binding="{Binding Path=available}" Value="True">
-                      <Setter Property="Visibility" Value="Visible" />
-                    </DataTrigger>
-                  </Style.Triggers>
-                </Style>
-              </ListBox.ItemContainerStyle>
-              <ListBox.ItemTemplate>
-                <DataTemplate>
-                  <Grid>
-                    <Grid.ColumnDefinitions>
-                      <ColumnDefinition Width="*" />
-                      <ColumnDefinition Width="50" />
-                    </Grid.ColumnDefinitions>
-                    <CheckBox 
-                      Grid.Column="0"
-                      HorizontalAlignment="Left"
-                      VerticalAlignment="Center"
-                      IsChecked="{Binding Path=checked, Mode=TwoWay}"
-                      Content="{Binding Path=value}"
-                    />
-                    <TextBlock
-                      Grid.Column="1"
-                      HorizontalAlignment="Right"
-                      VerticalAlignment="Center"
-                      Text="{Binding Path=quantity}"
-                    />
-                  </Grid>
-                </DataTemplate>
-              </ListBox.ItemTemplate>
-            </ListBox>
-          </DataTemplate>
-        </TabControl.ContentTemplate>
-      </TabControl>
+    <Border
+      Grid.Row="0" Grid.ColumnSpan="5"
+      Margin="5" Padding="5"
+      Background="#efefef"
+      BorderBrush="DarkGray"
+      BorderThickness="1">
+      <Grid>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="*" />
+          <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
 
-      <Button Click="clear" Grid.Row="1" Grid.Column="0" Margin="4" Padding="5">Clear</Button>
-      <Button Click="clear_all" Grid.Row="1" Grid.Column="1" Margin="4" Padding="5">Clear All</Button>
-      <Button Click="cancel" Grid.Row="1" Grid.Column="3" Margin="4" Padding="5">Cancel</Button>
-      <Button Click="accept" Grid.Row="1" Grid.Column="4" Margin="4" Padding="5">Apply</Button>
+        <TabControl
+          Name="tabs"
+          Grid.Row="0"
+          SelectionChanged="on_tab_change"
+          ItemsSource="{Binding}">
+          <TabControl.ItemTemplate>
+            <DataTemplate>
+              <TextBlock Padding="5 2 5 2" Text="{Binding Path=title}" />
+            </DataTemplate>
+          </TabControl.ItemTemplate>
+          <TabControl.ContentTemplate>
+            <DataTemplate>
+              <ListBox
+                ItemsSource="{Binding Path=criterion.options}"
+                SelectionMode="Multiple">
+                <ListBox.ItemContainerStyle>
+                  <Style TargetType="ListBoxItem">
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                    <Setter Property="Focusable" Value="False" />
+                    <Style.Triggers>
+                      <DataTrigger Binding="{Binding Path=available}" Value="False">
+                        <Setter Property="Visibility" Value="Collapsed" />
+                      </DataTrigger>
+                      <DataTrigger Binding="{Binding Path=available}" Value="True">
+                        <Setter Property="Visibility" Value="Visible" />
+                      </DataTrigger>
+                    </Style.Triggers>
+                  </Style>
+                </ListBox.ItemContainerStyle>
+                <ListBox.ItemTemplate>
+                  <DataTemplate>
+                    <Grid>
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                      </Grid.ColumnDefinitions>
+                      <CheckBox 
+                        Grid.Column="0"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Center"
+                        IsChecked="{Binding Path=checked, Mode=TwoWay}"
+                        Content="{Binding Path=value}"
+                      />
+                      <TextBlock
+                        Grid.Column="1"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Center"
+                        Text="{Binding Path=quantity}"
+                      />
+                    </Grid>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+            </DataTemplate>
+          </TabControl.ContentTemplate>
+        </TabControl>
+        <Grid Grid.Row="1">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="*" />
+          </Grid.ColumnDefinitions>
 
-    </Grid>
+          <Button Click="check_all" Grid.Column="0">Check All</Button>
+          <Button Click="uncheck_all" Grid.Column="1">Uncheck All</Button>
+        </Grid>
+      </Grid>
+    </Border>
+
+    <Button Click="clear" Grid.Row="1" Grid.Column="0">Clear</Button>
+    <Button Click="clear_all" Grid.Row="1" Grid.Column="1">Clear All</Button>
+    <Button Click="cancel" Grid.Row="1" Grid.Column="3">Cancel</Button>
+    <Button Click="accept" Grid.Row="1" Grid.Column="4">Apply</Button>
+
+  </Grid>
 </Window>
