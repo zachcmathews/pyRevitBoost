@@ -1,5 +1,8 @@
 # pylint: disable=import-error
-from System.ComponentModel import INotifyPropertyChanged, PropertyChangedEventArgs
+from System.ComponentModel import (
+    INotifyPropertyChanged,
+    PropertyChangedEventArgs
+)
 import pyevent
 
 
