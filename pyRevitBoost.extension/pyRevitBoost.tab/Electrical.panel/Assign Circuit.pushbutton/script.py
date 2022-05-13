@@ -7,9 +7,11 @@ import sys
 from Autodesk.Revit.DB import (
     BuiltInCategory,
     BuiltInParameter,
+    ElementSet,
     FamilyInstance,
     FilteredElementCollector,
     IndependentTag,
+    TransactionGroup,
 )
 from Autodesk.Revit.DB.Electrical import (
     ElectricalSystem,
@@ -34,10 +36,11 @@ if __name__ == '__main__':
     doc = rpw.revit.doc
     elements = rpw.ui.Selection(uidoc=uidoc).get_elements(wrapped=False)
 
-    with rpw.db.TransactionGroup(
-        'Assign circuit',
-        doc=doc
-    ):
+    retry = True
+    tg = None
+    while retry:
+        tg = TransactionGroup(doc)
+        tg.Start('Assign circuit')
 
         # Check user selection
         # Circuit was selected
@@ -85,202 +88,213 @@ if __name__ == '__main__':
 
                 for _circuit in circuits:
                     with rpw.db.Transaction(
-                        'Assign circuit: delete existing circuit',
+                        'Assign circuit: remove element from existing circuit',
                         doc=doc
                     ):
-                        doc.Delete(_circuit.Id)
+                        elSet = ElementSet()
+                        elSet.Insert(el)
+                        _circuit.RemoveFromCircuit(elSet)
 
-        retry = True
-        while retry:
-            # Get the user input
-            desired_circuit = forms.ask_for_string(
-                title='Assign Circuit',
-                default='XX-1,3,5'
+        # Get the user input
+        desired_circuit = forms.ask_for_string(
+            title='Assign Circuit',
+            default='XX-1,3,5'
+        )
+        if not desired_circuit:
+            sys.exit()
+
+        # Check the user input
+        match = \
+            re.match(
+                pattern='^(?P<panel_name>[a-zA-Z]\w+?)-?(?P<circuit_number>((\d+),?\ ?){1,3})?$',
+                string=desired_circuit
             )
-            if not desired_circuit:
-                sys.exit()
+        if not match:
+            tg.RollBack()
+            retry = forms.alert(
+                title='Invalid circuit format',
+                msg='Input circuit format is invalid.',
+                retry=True,
+                cancel=True,
+                ok=False,
+                exitscript=True
+            )
+            continue
 
-            # Check the user input
-            match = \
-                re.match(
-                    pattern='^(?P<panel_name>[a-zA-Z]\w+?)-?(?P<circuit_number>((\d+),?\ ?){1,3})?$',
-                    string=desired_circuit
-                )
-            if not match:
-                retry = forms.alert(
-                    title='Invalid circuit format',
-                    msg='Input circuit format is invalid.',
-                    retry=True,
-                    cancel=True,
-                    ok=False,
-                    exitscript=True
-                )
-                continue
+        panel_name = match.group('panel_name')
+        desired_circuit_number = match.group('circuit_number')
 
-            panel_name = match.group('panel_name')
-            desired_circuit_number = match.group('circuit_number')
-
-            # Find the panel
+        # Find the panel
+        panels = [
+            panel for panel in
+            FilteredElementCollector(doc)
+            .OfCategory(BuiltInCategory.OST_ElectricalEquipment)
+            .OfClass(FamilyInstance)
+            .ToElements()
+            if panel.Name == panel_name
+        ]
+        if not panels:
             panels = [
                 panel for panel in
                 FilteredElementCollector(doc)
                 .OfCategory(BuiltInCategory.OST_ElectricalEquipment)
                 .OfClass(FamilyInstance)
                 .ToElements()
-                if panel.Name == panel_name
+                if str(panel.Name).upper() == str(panel_name).upper()
             ]
-            if not panels:
-                panels = [
-                    panel for panel in
-                    FilteredElementCollector(doc)
-                    .OfCategory(BuiltInCategory.OST_ElectricalEquipment)
-                    .OfClass(FamilyInstance)
-                    .ToElements()
-                    if str(panel.Name).upper() == str(panel_name).upper()
-                ]
-            if not panels:
+        if not panels:
+            tg.RollBack()
+            retry = forms.alert(
+                title='Panel does not exist',
+                msg='Panel {} does not exist.'.format(panel_name),
+                retry=True,
+                cancel=True,
+                ok=False,
+                exitscript=True
+            )
+            continue
+        if len(panels) > 1:
+            tg.RollBack()
+            forms.alert(
+                title='Multiple panels with same name',
+                msg='Multiple panels with name {} exist. '
+                    'Unable to resolve.'.format(panel_name),
+                cancel=True,
+                ok=False,
+                exitscript=True
+            )
+        panel = panels[0]
+
+        # Find the panel schedule view
+        try:
+            [panel_schedule] = [
+                schedule for schedule in
+                FilteredElementCollector(doc)
+                .OfClass(PanelScheduleView)
+                .ToElements()
+                if schedule.GetPanel() == panel.Id
+            ]
+        except ValueError:
+            tg.RollBack()
+            retry = forms.alert(
+                title='Panel schedule does not exist',
+                msg='You must create the panel schedule for panel {} '
+                    'before running this command.'.format(panel_name),
+                ok=False,
+                cancel=True,
+                exitscript=True
+            )
+
+        # Prepare the panel schedule slots to assign the circuit to
+        if desired_circuit_number:
+            desired_circuit_slots = \
+                [int(n) for n in desired_circuit_number.split(',')]
+
+            max_slots = (
+                panel.get_Parameter(
+                    BuiltInParameter.RBS_ELEC_NUMBER_OF_CIRCUITS)
+                or panel.get_Parameter(
+                    BuiltInParameter.RBS_ELEC_MAX_POLE_BREAKERS)
+            ).AsInteger()
+
+            if any(slot > max_slots for slot in desired_circuit_slots):
+                tg.RollBack()
                 retry = forms.alert(
-                    title='Panel does not exist',
-                    msg='Panel {} does not exist.'.format(panel_name),
+                    title='Panel capacity exceeded',
+                    msg='Desired circuit number {} exceeds number of '
+                        'panelboard poles.'.format(desired_circuit_number),
                     retry=True,
                     cancel=True,
                     ok=False,
                     exitscript=True
                 )
                 continue
-            if len(panels) > 1:
-                forms.alert(
-                    title='Multiple panels with same name',
-                    msg='Multiple panels with name {} exist. '
-                        'Unable to resolve.'.format(panel_name),
-                    cancel=True,
-                    ok=False,
-                    exitscript=True
-                )
-            panel = panels[0]
 
-            # Find the panel schedule view
+            for slot in desired_circuit_slots:
+                rows, cols = panel_schedule.GetCellsBySlotNumber(slot)
+                for row in rows:
+                    for col in cols:
+                        # TODO: Remove locks and groups
+                        # Remove blocking circuit
+                        blocking_circuit = \
+                            panel_schedule.GetCircuitByCell(row, col)
+                        if blocking_circuit:
+                            with rpw.db.Transaction(
+                                'Assign circuit: remove blocking circuit',
+                                doc=doc
+                            ):
+                                blocking_circuit.DisconnectPanel()
+                        # Remove blocking space
+                        elif panel_schedule.IsSpace(row, col):
+                            with rpw.db.Transaction(
+                                'Assign circuit: remove blocking space',
+                                doc=doc
+                            ):
+                                panel_schedule.RemoveSpace(row, col)
+                        # Remove blocking spare
+                        elif panel_schedule.IsSpare(row, col):
+                            with rpw.db.Transaction(
+                                'Assign circuit: remove blocking spare',
+                                doc=doc
+                            ):
+                                panel_schedule.RemoveSpare(row, col)
+
+        # Create the circuit if needed
+        if not circuit:
+            with rpw.db.Transaction(
+                'Assign circuit: create circuit',
+                doc=doc
+            ):
+                circuit = ElectricalSystem.Create(
+                    doc,
+                    [el.Id for el in elements],
+                    ElectricalSystemType.PowerCircuit
+                )
+
+        # Assign the panel if needed
+        if circuit.BaseEquipment != panel:
             try:
-                [panel_schedule] = [
-                    schedule for schedule in
-                    FilteredElementCollector(doc)
-                    .OfClass(PanelScheduleView)
-                    .ToElements()
-                    if schedule.GetPanel() == panel.Id
-                ]
-            except ValueError:
-                retry = forms.alert(
-                    title='Panel schedule does not exist',
-                    msg='You must create the panel schedule for panel {} '
-                        'before running this command.'.format(panel_name),
+                with rpw.db.Transaction(
+                    'Assign circuit: select panel',
+                    doc=doc
+                ):
+                    circuit.SelectPanel(panel)
+            except:     # noqa: E722
+                tg.RollBack()
+                forms.alert(
+                    title='Error connecting circuit to panel',
+                    msg='There was an error connecting the circuit to the '
+                        'selected panel. Try doing so manually.',
+                    cancel=False,
                     ok=False,
-                    cancel=True,
                     exitscript=True
                 )
 
-            # Prepare the panel schedule slots to assign the circuit to
-            if desired_circuit_number:
-                desired_circuit_slots = \
-                    [int(n) for n in desired_circuit_number.split(',')]
+        # Move to the correct slots if needed
+        if not desired_circuit_number:
+            tg.Assimilate()
+            break
 
-                max_slots = (
-                    panel.get_Parameter(
-                        BuiltInParameter.RBS_ELEC_NUMBER_OF_CIRCUITS)
-                    or panel.get_Parameter(
-                        BuiltInParameter.RBS_ELEC_MAX_POLE_BREAKERS)
-                ).AsInteger()
+        if circuit.StartSlot == desired_circuit_slots[0]:
+            tg.Assimilate()
+            break
 
-                if any(slot > max_slots for slot in desired_circuit_slots):
-                    retry = forms.alert(
-                        title='Panel capacity exceeded',
-                        msg='Desired circuit number {} exceeds number of '
-                            'panelboard poles.'.format(desired_circuit_number),
-                        retry=True,
-                        cancel=True,
-                        ok=False,
-                        exitscript=True
-                    )
-                    continue
+        start_rows, start_cols = \
+            panel_schedule.GetCellsBySlotNumber(circuit.StartSlot)
+        end_rows, end_cols = \
+            panel_schedule\
+            .GetCellsBySlotNumber(desired_circuit_slots[0])
 
-                for slot in desired_circuit_slots:
-                    rows, cols = panel_schedule.GetCellsBySlotNumber(slot)
-                    for row in rows:
-                        for col in cols:
-                            # TODO: Remove locks and groups
-                            # Remove blocking circuit
-                            blocking_circuit = \
-                                panel_schedule.GetCircuitByCell(row, col)
-                            if blocking_circuit:
-                                with rpw.db.Transaction(
-                                    'Assign circuit: remove blocking circuit',
-                                    doc=doc
-                                ):
-                                    blocking_circuit.DisconnectPanel()
-                            # Remove blocking space
-                            elif panel_schedule.IsSpace(row, col):
-                                with rpw.db.Transaction(
-                                    'Assign circuit: remove blocking space',
-                                    doc=doc
-                                ):
-                                    panel_schedule.RemoveSpace(row, col)
-                            # Remove blocking spare
-                            elif panel_schedule.IsSpare(row, col):
-                                with rpw.db.Transaction(
-                                    'Assign circuit: remove blocking spare',
-                                    doc=doc
-                                ):
-                                    panel_schedule.RemoveSpare(row, col)
+        with rpw.db.Transaction(
+            'Assign circuit: move to correct slot',
+            doc=doc
+        ):
+            panel_schedule.MoveSlotTo(
+                start_rows[0],
+                start_cols[0],
+                end_rows[0],
+                end_cols[0]
+            )
 
-            # Create the circuit if needed
-            if not circuit:
-                with rpw.db.Transaction(
-                    'Assign circuit: create circuit',
-                    doc=doc
-                ):
-                    circuit = ElectricalSystem.Create(
-                        doc,
-                        [el.Id for el in elements],
-                        ElectricalSystemType.PowerCircuit
-                    )
-
-            # Assign the panel if needed
-            if circuit.BaseEquipment != panel:
-                try:
-                    with rpw.db.Transaction(
-                        'Assign circuit: select panel',
-                        doc=doc
-                    ):
-                        circuit.SelectPanel(panel)
-                except:     # noqa: E722
-                    forms.alert(
-                        title='Error connecting circuit to panel',
-                        msg='There was an error connecting the circuit to the '
-                            'selected panel. Try doing so manually.',
-                        cancel=False,
-                        ok=False,
-                        exitscript=True
-                    )
-
-            # Move to the correct slots if needed
-            if desired_circuit_number:
-                if circuit.StartSlot == desired_circuit_slots[0]:
-                    break
-
-                start_rows, start_cols = \
-                    panel_schedule.GetCellsBySlotNumber(circuit.StartSlot)
-                end_rows, end_cols = \
-                    panel_schedule\
-                    .GetCellsBySlotNumber(desired_circuit_slots[0])
-
-                with rpw.db.Transaction(
-                    'Assign circuit: move to correct slot',
-                    doc=doc
-                ):
-                    panel_schedule.MoveSlotTo(
-                        start_rows[0],
-                        start_cols[0],
-                        end_rows[0],
-                        end_cols[0]
-                    )
-
-            retry = False
+        tg.Assimilate()
+        break
