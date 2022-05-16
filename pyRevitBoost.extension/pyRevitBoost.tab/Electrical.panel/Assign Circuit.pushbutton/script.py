@@ -101,7 +101,8 @@ if __name__ == '__main__':
             default='XX-1,3,5'
         )
         if not desired_circuit:
-            sys.exit()
+            tg.RollBack()
+            break
 
         # Check the user input
         match = \
