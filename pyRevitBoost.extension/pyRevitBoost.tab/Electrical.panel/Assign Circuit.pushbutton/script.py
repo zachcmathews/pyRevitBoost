@@ -48,8 +48,31 @@ if __name__ == '__main__':
             circuit = elements[0]
         # Tag was selected, grab its associated circuit
         elif len(elements) == 1 and type(elements[0]) == IndependentTag:
-            circuit = doc.GetElement(elements[0].TaggedElementId)
+            wire = doc.GetElement(elements[0].TaggedLocalElementId)
+            if not type(wire) == Wire:
+                tg.RollBack()
+                forms.alert(
+                    title='Invalid tag',
+                    msg='Selected tag is not associated with an '
+                        'electrical system.',
+                    cancel=True,
+                    ok=False,
+                    exitscript=True
+                )
+            circuits = wire.GetMEPSystems()
+            if not circuits:
+                tg.RollBack()
+                forms.alert(
+                    title='Invalid tag',
+                    msg='Selected tag is not associated with an '
+                        'electrical system.',
+                    cancel=True,
+                    ok=False,
+                    exitscript=False
+                )
+            circuit = doc.GetElement(circuits[0])
             if not type(circuit) == ElectricalSystem:
+                tg.RollBack()
                 forms.alert(
                     title='Invalid tag',
                     msg='Selected tag is not associated with an '
@@ -101,7 +124,8 @@ if __name__ == '__main__':
             default='XX-1,3,5'
         )
         if not desired_circuit:
-            sys.exit()
+            tg.RollBack()
+            break
 
         # Check the user input
         match = \
