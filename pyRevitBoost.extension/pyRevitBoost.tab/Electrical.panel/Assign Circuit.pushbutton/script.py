@@ -1,8 +1,5 @@
 # pylint: disable=import-error
 import re
-import sys
-
-# from System.Collections.Generic import List
 
 from Autodesk.Revit.DB import (
     BuiltInCategory,
@@ -11,6 +8,7 @@ from Autodesk.Revit.DB import (
     FamilyInstance,
     FilteredElementCollector,
     IndependentTag,
+    Transaction,
     TransactionGroup,
 )
 from Autodesk.Revit.DB.Electrical import (
@@ -68,7 +66,7 @@ if __name__ == '__main__':
                         'electrical system.',
                     cancel=True,
                     ok=False,
-                    exitscript=False
+                    exitscript=True
                 )
             circuit = doc.GetElement(circuits[0])
             if not type(circuit) == ElectricalSystem:
@@ -238,7 +236,6 @@ if __name__ == '__main__':
                 rows, cols = panel_schedule.GetCellsBySlotNumber(slot)
                 for row in rows:
                     for col in cols:
-                        # TODO: Remove locks and groups
                         # Remove blocking circuit
                         blocking_circuit = \
                             panel_schedule.GetCircuitByCell(row, col)
@@ -265,30 +262,50 @@ if __name__ == '__main__':
 
         # Create the circuit if needed
         if not circuit:
-            with rpw.db.Transaction(
-                'Assign circuit: create circuit',
-                doc=doc
-            ):
+            t = Transaction(doc)
+            t.Start('Assign circuit: create circuit')
+            try:
                 circuit = ElectricalSystem.Create(
                     doc,
                     [el.Id for el in elements],
                     ElectricalSystemType.PowerCircuit
                 )
+                t.Commit()
+            except:     # noqa: E722
+                t.RollBack()
+                tg.RollBack()
+                forms.alert(
+                    title='Error creating circuit',
+                    msg='There was an error creating the circuit '
+                        'automatically.\n\n'
+                        'Try doing so manually, and then select the circuit '
+                        'before running this command to assign the panel and '
+                        'breaker #.',
+                    cancel=False,
+                    ok=False,
+                    exitscript=True
+                )
 
         # Assign the panel if needed
         if circuit.BaseEquipment != panel:
+            t = Transaction(doc)
+            t.Start('Assign circuit: select panel')
             try:
-                with rpw.db.Transaction(
-                    'Assign circuit: select panel',
-                    doc=doc
-                ):
-                    circuit.SelectPanel(panel)
+                circuit.SelectPanel(panel)
+                t.Commit()
             except:     # noqa: E722
+                t.RollBack()
                 tg.RollBack()
                 forms.alert(
                     title='Error connecting circuit to panel',
                     msg='There was an error connecting the circuit to the '
-                        'selected panel. Try doing so manually.',
+                        'selected panel.\n\n'
+                        'If any of the selected elements\' connector '
+                        'voltages or # of poles are set by an instance '
+                        'parameter, the electrical system must be created '
+                        'using the standard Revit method. Afterwards, you '
+                        'can assign the panel and breaker # using this '
+                        'command.',
                     cancel=False,
                     ok=False,
                     exitscript=True
@@ -309,16 +326,31 @@ if __name__ == '__main__':
             panel_schedule\
             .GetCellsBySlotNumber(desired_circuit_slots[0])
 
-        with rpw.db.Transaction(
-            'Assign circuit: move to correct slot',
-            doc=doc
-        ):
-            panel_schedule.MoveSlotTo(
-                start_rows[0],
-                start_cols[0],
-                end_rows[0],
-                end_cols[0]
-            )
+        if circuit.BaseEquipment != panel:
+            t = Transaction(doc)
+            t.Start('Assign circuit: move to correct slot')
+            try:
+                panel_schedule.MoveSlotTo(
+                    start_rows[0],
+                    start_cols[0],
+                    end_rows[0],
+                    end_cols[0]
+                )
+                t.Commit()
+            except:     # noqa: E722
+                t.RollBack()
+                tg.RollBack()
+                forms.alert(
+                    title='Error moving circuit',
+                    msg='There was an error moving the circuit to the correct '
+                        'breaker number.\n\n'
+                        'Perhaps the selected breaker is locked. Check the '
+                        'panel schedule to see if you can move the circuit to '
+                        'the desired breaker manually.',
+                    cancel=False,
+                    ok=False,
+                    exitscript=True
+                )
 
         tg.Assimilate()
         break
