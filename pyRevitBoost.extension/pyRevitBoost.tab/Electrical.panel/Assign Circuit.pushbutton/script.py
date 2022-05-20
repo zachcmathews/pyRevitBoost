@@ -4,6 +4,7 @@ import re
 from Autodesk.Revit.DB import (
     BuiltInCategory,
     BuiltInParameter,
+    ElementOnPhaseStatus,
     ElementSet,
     FamilyInstance,
     FilteredElementCollector,
@@ -29,9 +30,13 @@ Breaker number optional.
 __author__ = 'Zachary Mathews'
 __context__ = 'Selection'
 
-if __name__ == '__main__':
+
+def main():
     uidoc = rpw.revit.uidoc
     doc = rpw.revit.doc
+    view = rpw.revit.active_view.unwrap()
+    phase = \
+        view.get_Parameter(BuiltInParameter.VIEW_PHASE).AsElementId()
     elements = rpw.ui.Selection(uidoc=uidoc).get_elements(wrapped=False)
 
     retry = True
@@ -128,7 +133,7 @@ if __name__ == '__main__':
         # Check the user input
         match = \
             re.match(
-                pattern='^(?P<panel_name>[a-zA-Z]\w+?)-?(?P<circuit_number>((\d+),?\ ?){1,3})?$',
+                pattern='^(?P<panel_name>\w+?)-?(?P<circuit_number>((\d+),?\ ?){1,3})?$',
                 string=desired_circuit
             )
         if not match:
@@ -154,6 +159,10 @@ if __name__ == '__main__':
             .OfClass(FamilyInstance)
             .ToElements()
             if panel.Name == panel_name
+            and (
+                panel.GetPhaseStatus(phase) == ElementOnPhaseStatus.Existing
+                or panel.GetPhaseStatus(phase) == ElementOnPhaseStatus.New
+            )
         ]
         if not panels:
             panels = [
@@ -354,3 +363,7 @@ if __name__ == '__main__':
 
         tg.Assimilate()
         break
+
+
+if __name__ == '__main__':
+    main()
