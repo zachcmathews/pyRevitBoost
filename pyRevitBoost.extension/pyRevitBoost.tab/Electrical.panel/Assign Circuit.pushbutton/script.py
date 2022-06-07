@@ -124,7 +124,8 @@ def main():
         # Get the user input
         desired_circuit = forms.ask_for_string(
             title='Assign Circuit',
-            default='XX-1,3,5'
+            default='XX-1,3,5',
+            prompt='Enter circuit or panel:'
         )
         if not desired_circuit:
             tg.RollBack()
@@ -133,7 +134,7 @@ def main():
         # Check the user input
         match = \
             re.match(
-                pattern='^(?P<panel_name>\w+?)-?(?P<circuit_number>((\d+),?\ ?){1,3})?$',
+                pattern='^(?P<panel_name>\w+)(-(?P<circuit_number>((\d+),?\ ?){1,3})?)?$',
                 string=desired_circuit
             )
         if not match:
