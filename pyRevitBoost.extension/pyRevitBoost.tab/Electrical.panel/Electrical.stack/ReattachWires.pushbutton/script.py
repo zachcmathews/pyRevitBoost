@@ -76,7 +76,7 @@ if __name__ == '__main__':
         with rpw.db.Transaction('Reattach wires', doc=doc):
             for wire in wires:
                 start = to_XY(wire.GetVertex(0))
-                end = to_XY(wire.GetVertex(wire.NumberOfVertices-1))
+                end = to_XY(wire.GetVertex(wire.NumberOfVertices - 1))
 
                 closest_to_start = min(
                     connectors,
