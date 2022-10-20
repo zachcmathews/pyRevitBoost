@@ -19,11 +19,10 @@ from Autodesk.Revit.DB import (BoundingBoxIntersectsFilter,
                                XYZ)
 from Autodesk.Revit.UI import SelectionUIOptions
 
-import rpw 
+import rpw
 from pyrevit import forms, script
 
 __doc__ = 'Lasso select elements'
-__title__ = 'Lasso Select'
 __author__ = 'Zachary Mathews'
 
 
