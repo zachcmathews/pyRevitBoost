@@ -5,6 +5,11 @@ import rpw
 
 from common import get_element_meta, Filter, FilterForm
 
+__doc__ = '''\
+Filter based on selected criteria.
+'''
+__author__ = 'Zachary Mathews'
+__context__ = 'Selection'
 
 def _get_element_dict(e, meta):
     from Autodesk.Revit.DB import ParameterType, StorageType
@@ -79,7 +84,7 @@ if __name__ == '__main__':
 
         # Show form
         filtered_elements = FilterForm(
-            template='FilterForm.xaml',
+            template='../FilterForm.xaml',
             _filter=_filter,
             elements=elements
         ).show_dialog()

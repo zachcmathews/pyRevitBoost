@@ -6,11 +6,9 @@ from common import get_element_meta, Filter, FilterForm
 
 __doc__ = '''\
 Filter based on category, family, type and workset.
-
-Shift+Click = Filter based on user-selected parameters.
 '''
-__title__ = 'Filter'
 __author__ = 'Zachary Mathews'
+__context__ = 'Selection'
 
 if __name__ == '__main__':
     uidoc = rpw.revit.uidoc
@@ -36,7 +34,7 @@ if __name__ == '__main__':
 
         # Show form
         filtered_elements = FilterForm(
-            template='FilterForm.xaml',
+            template='../FilterForm.xaml',
             _filter=_filter,
             elements=elements
         ).show_dialog()
