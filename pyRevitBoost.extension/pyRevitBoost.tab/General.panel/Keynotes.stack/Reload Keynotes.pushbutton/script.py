@@ -1,6 +1,6 @@
 # pylint: disable=import-error
 import rpw
-from Autodesk.Revit.DB import ExternalResourceLoadStatus, KeynoteTable 
+from Autodesk.Revit.DB import ExternalResourceLoadStatus, KeynoteTable
 
 from pyrevit import forms
 
