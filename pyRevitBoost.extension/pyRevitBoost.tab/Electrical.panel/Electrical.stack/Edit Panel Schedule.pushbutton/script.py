@@ -2,7 +2,11 @@
 import sys
 
 from Autodesk.Revit.DB import IndependentTag
-from Autodesk.Revit.DB.Electrical import PanelScheduleView, Wire
+from Autodesk.Revit.DB.Electrical import (
+    ElectricalSystem,
+    PanelScheduleView,
+    Wire
+)
 
 from pyrevit import forms
 import rpw
@@ -28,6 +32,10 @@ def main():
     panel_schedule_lookup = dict((ps.GetPanel(), ps) for ps in panel_schedules)
     panels = set()
     for el in elements:
+        if type(el) is ElectricalSystem:
+            panels.add(el.BaseEquipment)
+            continue
+
         if type(el) is IndependentTag:
             el = el.GetTaggedLocalElement()
 
