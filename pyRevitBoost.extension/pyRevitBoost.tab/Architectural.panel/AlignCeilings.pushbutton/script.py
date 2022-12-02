@@ -75,7 +75,7 @@ def align_grid_with_edges(grid, edges, doc):
             not is_divisible
             and numerator > denominator
         ):
-            numerator /= denominator
+            numerator -= denominator
             is_divisible = abs(numerator - denominator) < 1e-9
 
         return is_divisible
@@ -393,17 +393,15 @@ if __name__ == '__main__':
                     # Get fixture edges
                     edges_in_ceiling = []
                     for fixture in hosted_fixtures:
-                        edges_in_ceiling.extend(
-                            get_fixture_edges(fixture, view)
+                        # Align grid with fixture edges
+                        succeeded, _failed = align_grid_with_edges(
+                            grid=grid,
+                            edges=get_fixture_edges(fixture, view),
+                            doc=doc
                         )
-
-                    # Align grid with fixture edges
-                    succeeded, _failed = align_grid_with_edges(
-                        grid=grid,
-                        edges=edges_in_ceiling,
-                        doc=doc
-                    )
-                    if _failed:
+                        if succeeded:
+                            break
+                    else:
                         failed.append(ceiling)
 
                     # Cleanup

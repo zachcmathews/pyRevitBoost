@@ -1,15 +1,8 @@
 layout:
-    - CADToRevit
     - Filter
-    - YankParameters
-    - Search Libraries
-    - Bulk Rename Families
     - Selection
+    - CADToRevit
+    - Bulk Rename Families
     - --------------
-    - Keynotes
-    - --------------
-    - Orientation
-    - Orientation2
-    - --------------
-    - Families
-    - External Resources
+    - Parameters
+    - Resources
