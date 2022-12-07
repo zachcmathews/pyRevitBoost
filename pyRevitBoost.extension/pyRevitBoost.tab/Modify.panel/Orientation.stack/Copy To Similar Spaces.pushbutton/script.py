@@ -137,7 +137,6 @@ def get_space_descriptors(doc, phase, view, space):
             curve = boundary_segment.GetCurve()
             p0 = curve.GetEndPoint(0)
             p1 = curve.GetEndPoint(1)
-            tangent = (p1 - p0).Normalize()
 
             # Add points on the perimeter
             boundary_points.add(p0)
@@ -151,6 +150,7 @@ def get_space_descriptors(doc, phase, view, space):
                 width = d.Symbol.get_Parameter(
                     getattr(BuiltInParameter, 'DOOR_WIDTH')).AsDouble()
                 location = d.Location.Point
+                tangent = d.GetTotalTransform().OfVector(XYZ(1, 0, 0))
 
                 p0 = location + (width / 2) * tangent
                 p1 = location - (width / 2) * tangent
@@ -189,9 +189,12 @@ def get_space_descriptors(doc, phase, view, space):
             sum_Cy += (
                 boundary_points[i].Y + boundary_points[0].Y
             ) * shoelace
-
+    
     A = 0.5 * sum_A
+    if A == 0:
+        return None
     factor = 1 / (6.0 * A)
+
     Cx = factor * sum_Cx
     Cy = factor * sum_Cy
     centroid = XYZ(Cx, Cy, space.Level.Elevation)
@@ -231,7 +234,7 @@ def draw_space_descriptors(centroid, unique_vectors, view, doc):
 def get_transforms_between_spaces(
     centroid_1, unique_vectors_1,
     centroid_2, unique_vectors_2,
-    view, doc, show_diagnostics=False
+    draw_descriptors=False
 ):
     uv1_iter = iter(unique_vectors_1)
     v1_0 = next(uv1_iter, None)
@@ -239,7 +242,7 @@ def get_transforms_between_spaces(
     while v1_0 and not v2_0:
         v2_0 = [
             v for v in unique_vectors_2
-            if abs(v.GetLength() - v1_0.GetLength()) < 1e-1
+            if abs(v.GetLength() - v1_0.GetLength()) < 5e-1
         ]
         if v2_0:
             break
@@ -253,7 +256,7 @@ def get_transforms_between_spaces(
     while v1_1 and not v2_1:
         v2_1 = [
             v for v in unique_vectors_2
-            if abs(v.GetLength() - v1_1.GetLength()) < 1e-1
+            if abs(v.GetLength() - v1_1.GetLength()) < 5e-1
         ]
         if v2_1:
             break
@@ -267,43 +270,46 @@ def get_transforms_between_spaces(
 
     v2_0 = v2_0[0]
     v2_1 = v2_1[0]
-    # if not show_diagnostics:
-    #     draw_space_descriptors(centroid_2, [v2_0, v2_1], view, doc)
+    # if draw_descriptors:
+    #     with rpw.db.Transaction("Debugging"):
+    #         doc = rpw.revit.doc
+    #         view = rpw.revit.uidoc.ActiveView
+    #         draw_space_descriptors(centroid_2, [v2_0, v2_1], view, doc)
 
     # Determine rotation transformation
     v11_v10 = (v1_1 - v1_0).Normalize()
     v21_v20 = (v2_1 - v2_0).Normalize()
     multiplier = 1.0 if v11_v10.CrossProduct(v21_v20).Z > 0 else -1.0
-    angle = (v11_v10).AngleTo(v21_v20)
-    rotation = Transform.CreateRotationAtPoint(
-        XYZ.BasisZ,
-        multiplier * angle,
-        centroid_1
-    )
 
     # Determine reflection transformation
     # If cross products are inverse, we need to reflect
     xp1 = v1_0.CrossProduct(v1_1).Normalize()
     xp2 = v2_0.CrossProduct(v2_1).Normalize()
-    if show_diagnostics:
-        print(xp1, xp2)
     if xp1.IsAlmostEqualTo(-xp2):
-        normal = (centroid_1 + v1_0) - (centroid_1 + rotation.OfVector(v2_0))
+        angle = (v11_v10).AngleTo(-v21_v20)
+        rotation = Transform.CreateRotationAtPoint(
+            XYZ.BasisZ,
+            multiplier * angle,
+            centroid_1
+        )
+        normal = v1_0 - rotation.OfVector(v2_0)
         plane = Plane.CreateByNormalAndOrigin(
             normal,
             centroid_1
         )
         reflection = Transform.CreateReflection(plane)
-        if show_diagnostics:
-            print(angle, angle - math.pi, multiplier)
         rotation = Transform.CreateRotationAtPoint(
             XYZ.BasisZ,
             multiplier * -angle,
             centroid_1
         )
     else:
-        if show_diagnostics:
-            print("not reflected")
+        angle = (v11_v10).AngleTo(v21_v20)
+        rotation = Transform.CreateRotationAtPoint(
+            XYZ.BasisZ,
+            multiplier * angle,
+            centroid_1
+        )
         reflection = Transform.Identity
 
     translation = Transform.CreateTranslation(centroid_2 - centroid_1)
@@ -383,29 +389,29 @@ def main():
 
     similar_spaces = []
 
-    with rpw.db.Transaction("Draw space descriptors", doc=doc):
-        # draw_circle(XYZ(0,0,0), 0.25, view, doc)
+    try:
         centroid, unique_vectors = \
             get_space_descriptors(doc, phase, view, src_space)
-        # draw_space_descriptors(centroid, unique_vectors, view, doc)
+    except:
+        forms.alert(
+            'Space is not asymmetric enough to create a descriptive'
+            'set of vectors for calculating transforms.',
+            exitscript=True
+        )
 
-        for space in spaces:
+    for space in spaces:
+        try:
             dst_centroid, dst_unique_vectors = \
                 get_space_descriptors(doc, phase, view, space)
-            # draw_space_descriptors(
-            #     dst_centroid,
-            #     dst_unique_vectors,
-            #     view,
-            #     doc
-            # )
-            transform = \
-                get_transforms_between_spaces(
-                    centroid, unique_vectors,
-                    dst_centroid, dst_unique_vectors,
-                    view, doc
-                )
-            if transform:
-                similar_spaces.append(SpaceMapping(space, transform))
+        except:
+            continue
+        transform = \
+            get_transforms_between_spaces(
+                centroid, unique_vectors,
+                dst_centroid, dst_unique_vectors,
+            )
+        if transform:
+            similar_spaces.append(SpaceMapping(space, transform))
 
     dst_spaces = forms.SelectFromList.show(
         sorted(similar_spaces, key=lambda s: s.name),
@@ -415,10 +421,16 @@ def main():
     if not dst_spaces:
         return
 
+    # Debugging
     # for space_mapping in dst_spaces:
     #     centroid_2, unique_vectors_2 = get_space_descriptors(doc, phase, view, space_mapping.space)
-    #     get_transforms_between_spaces(centroid, unique_vectors, centroid_2, unique_vectors_2, view, doc, True)
+    #     get_transforms_between_spaces(
+    #         centroid, unique_vectors,
+    #         centroid_2, unique_vectors_2,
+    #         draw_descriptors=True
+    #     )
 
+    copies = []
     with rpw.db.Transaction("Copy to similar spaces", doc=doc):
         # Copied elements must be in .NET collection
         elements = List[ElementId]()
@@ -426,14 +438,19 @@ def main():
 
         options = CopyPasteOptions()
         for space_mapping in dst_spaces:
-            ElementTransformUtils.CopyElements(
+            copies.extend(ElementTransformUtils.CopyElements(
                 doc,
                 elements,
                 doc,
                 space_mapping.transform,
                 options
-            )
-
+            ))
+    
+    if copies:
+        selection = rpw.ui.Selection(uidoc=uidoc)
+        selection.clear()
+        selection.add(copies)
+            
 
 if __name__ == '__main__':
     main()
