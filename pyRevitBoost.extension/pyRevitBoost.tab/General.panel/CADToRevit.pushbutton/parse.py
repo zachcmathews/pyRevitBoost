@@ -79,7 +79,7 @@ def parse_config(block_name, config, doc):
 
 
 def parse_block_name(block):
-    results = regex['block'].search(block)
+    results = regex['block'].match(block)
     if not results:
         raise ValueError
 
@@ -87,12 +87,13 @@ def parse_block_name(block):
 
 
 def parse_host(host, units):
-    results = regex['host'].search(host)
-    type_ = results.group('type')
-    param = results.group('param')
+    results = regex['host'].match(host)
 
     if not results:
-        raise ValueError
+        raise ValueError('Could not find host {}'.format(host))
+
+    type_ = results.group('type')
+    param = results.group('param')
 
     if type_ == 'Wall' or type_ == 'Wall and Level':
         (succeeded, tolerance) = UnitFormatUtils.TryParse(
@@ -118,7 +119,7 @@ def parse_host(host, units):
 
 def parse_origin_offset(offset, units):
     if offset:
-        results = regex['origin-offset'].search(offset)
+        results = regex['origin-offset'].match(offset)
         if results:
             x, y = results.group('x'), results.group('y')
 
@@ -152,7 +153,7 @@ def parse_origin_offset(offset, units):
 
 def parse_orientation_offset(offset):
     if offset:
-        results = regex['orientation-offset'].search(offset)
+        results = regex['orientation-offset'].match(offset)
 
         if results:
             angle = float(results.group('angle'))
