@@ -10,8 +10,10 @@ __author__ = 'Zachary Mathews'
 
 def main():
     doc = rpw.revit.doc
+    uidoc = rpw.revit.uidoc
+
     elements = FilteredElementCollector(doc).WhereElementIsViewIndependent().ToElements()
-    selection = rpw.ui.Selection()
+    selection = rpw.ui.Selection(uidoc=uidoc)
     selection.clear()
     selection.add(elements)
 
