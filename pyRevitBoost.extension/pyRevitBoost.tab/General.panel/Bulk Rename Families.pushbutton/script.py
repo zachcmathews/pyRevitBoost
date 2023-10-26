@@ -35,7 +35,7 @@ if __name__ == '__main__':
         sys.exit()
 
     text = forms.ask_for_string(
-        default=doc.Title,
+        default='',
         prompt='{} text: '.format(selected_option)
     )
 
