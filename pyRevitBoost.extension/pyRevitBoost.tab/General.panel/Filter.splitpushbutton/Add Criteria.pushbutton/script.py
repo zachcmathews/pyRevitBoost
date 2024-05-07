@@ -1,5 +1,8 @@
 # pylint: disable=import-error
 from functools import partial
+
+from Autodesk.Revit.DB import SpecTypeId, StorageType
+
 from pyrevit import forms
 import rpw
 
@@ -11,8 +14,8 @@ Filter based on selected criteria.
 __author__ = 'Zachary Mathews'
 __context__ = 'Selection'
 
+
 def _get_element_dict(e, meta):
-    from Autodesk.Revit.DB import ParameterType, StorageType
     element = {}
     for p in e.Parameters:
         if p.StorageType == StorageType.String:
@@ -27,7 +30,7 @@ def _get_element_dict(e, meta):
 
         elif p.StorageType == StorageType.Integer:
             if p.HasValue:
-                if p.Definition.ParameterType == ParameterType.YesNo:
+                if p.GetTypeId() == SpecTypeId.Boolean.YesNo:
                     element[p.Definition.Name] = (
                         'Yes' if p.AsInteger() == 1 else 'No'
                     )
