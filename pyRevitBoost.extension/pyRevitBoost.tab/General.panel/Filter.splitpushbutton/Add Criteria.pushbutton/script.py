@@ -1,7 +1,7 @@
 # pylint: disable=import-error
 from functools import partial
 
-from Autodesk.Revit.DB import SpecTypeId, StorageType
+from Autodesk.Revit.DB import StorageType
 
 from pyrevit import forms
 import rpw
@@ -30,12 +30,24 @@ def _get_element_dict(e, meta):
 
         elif p.StorageType == StorageType.Integer:
             if p.HasValue:
-                if p.GetTypeId() == SpecTypeId.Boolean.YesNo:
-                    element[p.Definition.Name] = (
-                        'Yes' if p.AsInteger() == 1 else 'No'
-                    )
+                if int(__revit__.Application.VersionNumber) < 2022:
+                    from Autodesk.Revit.DB import ParameterType
+
+                    if p.Definition.ParameterType == ParameterType.YesNo:
+                        element[p.Definition.Name] = (
+                            'Yes' if p.AsInteger() == 1 else 'No'
+                        )
+                    else:
+                        element[p.Definition.Name] = p.AsValueString()
                 else:
-                    element[p.Definition.Name] = p.AsValueString()
+                    from Autodesk.Revit.DB import SpecTypeId
+
+                    if p.GetTypeId() == SpecTypeId.Boolean.YesNo:
+                        element[p.Definition.Name] = (
+                            'Yes' if p.AsInteger() == 1 else 'No'
+                        )
+                    else:
+                        element[p.Definition.Name] = p.AsValueString()
             else:
                 element[p.Definition.Name] = 'None'
 
