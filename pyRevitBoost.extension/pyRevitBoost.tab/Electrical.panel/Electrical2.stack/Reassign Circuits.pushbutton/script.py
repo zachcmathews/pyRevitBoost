@@ -21,7 +21,7 @@ from pyrevit import forms
 import rpw
 
 __doc__ = '''\
-Reassign circuits to other panel.
+Reassign circuits to another panel.
 '''
 __author__ = 'Zachary Mathews'
 __context__ = 'Selection'
