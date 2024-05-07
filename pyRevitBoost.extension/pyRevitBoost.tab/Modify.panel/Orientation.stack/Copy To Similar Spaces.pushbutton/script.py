@@ -335,6 +335,9 @@ def main():
         if s.Area > 1e-9
     ]
 
+    if not spaces:
+        forms.alert('No spaces in model.', exitscript=True)
+
     selection = rpw.ui.Selection(uidoc=uidoc)
     elements = selection.get_elements(wrapped=False)
     el = elements[0]
