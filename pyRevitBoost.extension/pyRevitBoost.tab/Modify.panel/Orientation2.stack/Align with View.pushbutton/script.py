@@ -1,8 +1,13 @@
 # pylint: disable=import-error
 import math
 
-from Autodesk.Revit.DB import (ElementTransformUtils, FamilyInstance, Line,
-                               ViewPlan, XYZ)
+from Autodesk.Revit.DB import (
+    ElementTransformUtils,
+    FamilyInstance,
+    Line,
+    ViewPlan,
+    XYZ
+)
 from Autodesk.Revit.Exceptions import ArgumentException
 
 import rpw
@@ -12,7 +17,8 @@ __doc__ = 'Align with view axes.'
 __author__ = 'Zachary Mathews'
 __context__ = 'Selection'
 
-if __name__ == '__main__':
+
+def main():
     doc = rpw.doc
     uidoc = rpw.uidoc
     view = uidoc.ActiveView
@@ -37,35 +43,31 @@ if __name__ == '__main__':
                       .OfVector(XYZ.BasisX)\
                       .AngleOnPlaneTo(
                           view.RightDirection,
-                          view.ViewDirection
-                      )
+                          view.ViewDirection)
             rot_y = el.GetTotalTransform()\
                       .OfVector(XYZ.BasisX)\
                       .AngleOnPlaneTo(
                           view.UpDirection,
-                          view.ViewDirection
-                      )
+                          view.ViewDirection)
             rot_neg_x = el.GetTotalTransform()\
                           .OfVector(XYZ.BasisX)\
                           .AngleOnPlaneTo(
                               -view.RightDirection,
-                              view.ViewDirection
-                          )
+                              view.ViewDirection)
             rot_neg_y = el.GetTotalTransform()\
                           .OfVector(XYZ.BasisX)\
                           .AngleOnPlaneTo(
                               -view.UpDirection,
-                              view.ViewDirection
-                          )
+                              view.ViewDirection)
 
             while rot_x > math.pi:
-                rot_x -= 2*math.pi
+                rot_x -= 2 * math.pi
             while rot_y > math.pi:
-                rot_y -= 2*math.pi
+                rot_y -= 2 * math.pi
             while rot_neg_x > math.pi:
-                rot_neg_x -= 2*math.pi
+                rot_neg_x -= 2 * math.pi
             while rot_neg_y > math.pi:
-                rot_neg_y -= 2*math.pi
+                rot_neg_y -= 2 * math.pi
 
             rotation = min(
                 [rot_x, rot_y, rot_neg_x, rot_neg_y],
@@ -96,3 +98,7 @@ if __name__ == '__main__':
                  .format(len(failed))),
             exitscript=True
         )
+
+
+if __name__ == '__main__':
+    main()
